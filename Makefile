@@ -1,21 +1,26 @@
-CC = cc
+CC = g++
 CPP = g++
-TARGET = lisp
-OBJS = src/lisp.o
-CFLAGS ?= -O2
-#CFLAGS ?= -g3 -O0 -pg
+TARGET=lisp
+CFLAGS = -O2 -g3 -Wall
+INCDIR = -Iinc
+LIB = -lreadline -lpthread
+SRCS = \
+	src/eval.cpp \
+	src/lisp.cpp \
+	src/map.cpp \
+	src/parse.cpp
+HEADERS = \
+	inc/lisp.h
+OBJS = $(SRCS:.cpp=.o)
 
-$(TARGET) : $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) 
+$(TARGET): $(HEADERS) $(OBJS)
+	$(CC) $(CFLAGS) $(INCDIR) $(LIB) -o $@ $(OBJS)
 
-.SUFFIXES: .c.o
+.SUFFIXES: .cpp.o
+.cpp.o: $(HEADERS)
+	$(CPP) $(CFLAGS) $(INCDIR) $(LIB) -o $@ -c $<
 
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c -o $@
-
-.cpp.o:
-	$(CPP) $(CFLAGS) -c $*.cpp -o $@
-
+.PHONY: clean
 clean:
 	rm -f $(TARGET) $(OBJS)
 
