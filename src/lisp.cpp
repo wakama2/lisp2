@@ -51,14 +51,38 @@ void Cons::println(FILE *fp) {
 	fprintf(fp, "\n");
 }
 
-int main(void) {
-	eval_init();
+static void interactive() {
 	while(true) {
 		printf(">>");
 		char is[256];
 		if(fgets(is, 256, stdin) == NULL) break;
 		Cons *c = parseExpr(is);
+		if(c != NULL) {
+			c->eval()->println();
+		}
+	}
+}
+
+static void runFromFile(const char *filename) {
+	FILE *fp = fopen(filename, "r");
+	if(fp == NULL) return;
+	char is[256];
+	fgets(is, 256, fp);
+	fclose(fp);
+
+	//while(true) {
+		Cons *c = parseExpr(is);
+		//if(c == NULL) break;
 		c->eval()->println();
+	//}
+}
+
+int main(int argc, char **argv) {
+	eval_init();
+	if(argc >= 2) {
+		runFromFile(argv[1]);
+	} else {
+		interactive();
 	}
 	return 0;
 }
