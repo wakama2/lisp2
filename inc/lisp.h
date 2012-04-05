@@ -6,6 +6,8 @@
 #include <string.h>
 #include <pthread.h>
 
+struct Context;
+
 struct WorkerThread {
 	pthread_t pth;
 };
@@ -50,6 +52,7 @@ extern void *jmptable[256];
 enum {
 	// [r1] = v2
 	INS_ICONST,
+	INS_IARG,
 	// [r1] += [r2]
 	INS_IADD,
 	INS_ISUB,
@@ -75,26 +78,38 @@ enum {
 
 struct Func {
 	const char *name;
-	Cons *args;
-	Cons *expr;
+	int argc;
+	const char *args[64];
 	Code *code;
 };
 void vmrun(WorkerThread *wth);
 
-
 struct Context {
 	Func *funcs[256];
 	int funcLen;
+
+	Context() {
+		funcLen = 0;
+	}
 };
 
 class CodeBuilder {
 public:
+	CodeBuilder(Func *f = NULL) {
+		func = f;
+		code = new Code[256];
+		sp = 0;
+	}
+	Func *func;
+	Code *code;
 	int sp;
 	void addInst(int inst);
 	void addInt(int n);
+	void addFunc(Func *func);
+	void accept(Func *func);
 };
 
-void codegen(Cons *cons, CodeBuilder *cb);
+void codegen(Context *ctx, Cons *cons, CodeBuilder *cb);
 
 #endif
 

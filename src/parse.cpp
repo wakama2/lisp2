@@ -53,7 +53,7 @@ static ParseResult<Cons *> parseExpr2(const char *src) {
 	} else {
 		char str[256];
 		int len = 0;
-		while(!(isSpace(*src) || *src == '\0')) {
+		while(!(isSpace(*src) || *src == ')' ||  *src == '(' || *src == '\0')) {
 			str[len++] = *src;
 			src++;
 		}

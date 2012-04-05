@@ -1,12 +1,12 @@
 CC = g++
 CPP = g++
 TARGET=lisp
-CFLAGS = -O2 -g3 -Wall
+CFLAGS = -O0 -g3 -Wall
 INCDIR = -Iinc
 LIB = -lreadline -lpthread
 SRCS = \
 	src/vm.cpp \
-	src/eval.cpp \
+	src/codegen.cpp \
 	src/lisp.cpp \
 	src/map.cpp \
 	src/parse.cpp

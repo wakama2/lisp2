@@ -52,7 +52,7 @@ void Cons::println(FILE *fp) {
 	fprintf(fp, "\n");
 }
 
-static void interactive() {
+static void interactive(Context *ctx) {
 	while(true) {
 		char *in = readline(">>");
 		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
@@ -62,14 +62,14 @@ static void interactive() {
 		Cons *c = parseExpr(in);
 		if(c != NULL) {
 			CodeBuilder *cb = new CodeBuilder();
-			codegen(c, cb);
+			codegen(ctx, c, cb);
 			delete cb;
 		}
 		free(in);
 	}
 }
 
-static void runFromFile(const char *filename) {
+static void runFromFile(const char *filename, Context *ctx) {
 	FILE *fp = fopen(filename, "r");
 	if(fp == NULL) return;
 	char is[256];
@@ -84,12 +84,13 @@ static void runFromFile(const char *filename) {
 }
 
 int main(int argc, char **argv) {
-	//eval_init();
+	Context *ctx = new Context();
 	if(argc >= 2) {
-		runFromFile(argv[1]);
+		runFromFile(argv[1], ctx);
 	} else {
-		interactive();
+		interactive(ctx);
 	}
+	delete ctx;
 	return 0;
 }
 
