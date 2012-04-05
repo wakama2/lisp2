@@ -38,16 +38,20 @@ static ParseResult<Cons *> parseExpr2(const char *src) {
 	if(*src == '(') {
 		src++;
 		ParseResult<Cons *> res = parseExpr2(src);
-		return ParseResult<Cons *>::make(res.src, newConsCar(res.value, parseExpr(res.src)));
+		ParseResult<Cons *> cdr = parseExpr2(res.src);
+		// return <cdr.src, new Cons(car, cdr)>
+		return ParseResult<Cons *>::make(cdr.src, newConsCar(res.value, cdr.value));
 	} else if(*src == ')') {
 		src++;
 		return ParseResult<Cons *>::make(src, NULL);
 	} else if(*src == '-' && isNumber(src[1])) {
 		ParseResult<int> res = parseInt(src + 1);
-		return ParseResult<Cons *>::make(res.src, newConsI(-res.value, parseExpr(res.src)));
+		ParseResult<Cons *> cdr = parseExpr2(res.src);
+		return ParseResult<Cons *>::make(cdr.src, newConsI(-res.value, cdr.value));
 	} else if(isNumber(*src)) {
 		ParseResult<int> res = parseInt(src);
-		return ParseResult<Cons *>::make(res.src, newConsI(res.value, parseExpr(res.src)));
+		ParseResult<Cons *> cdr = parseExpr2(res.src);
+		return ParseResult<Cons *>::make(cdr.src, newConsI(res.value, cdr.value));
 	} else if(*src == '\0') {
 		return ParseResult<Cons *>::make(src, NULL);
 	} else {
@@ -60,7 +64,8 @@ static ParseResult<Cons *> parseExpr2(const char *src) {
 		str[len] = '\0';
 		char *str2 = new char[len + 1];
 		strcpy(str2, str);
-		return ParseResult<Cons *>::make(src, newConsS(str2, parseExpr(src)));
+		ParseResult<Cons *> cdr = parseExpr2(src);
+		return ParseResult<Cons *>::make(cdr.src, newConsS(str2, cdr.value));
 	}
 }
 

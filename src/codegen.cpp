@@ -43,7 +43,6 @@ static Func *addfunc(Context *ctx, const char *name, Cons *args) {
 	f->name = name;
 	f->argc = 0;
 	for(; args != NULL; args = args->cdr) {
-		printf("%d: %s\n", f->argc, args->str);
 		f->args[f->argc++] = args->str;
 	}
 	ctx->funcs[ctx->funcLen++] = f;
@@ -51,14 +50,11 @@ static Func *addfunc(Context *ctx, const char *name, Cons *args) {
 }
 
 static void genDefun(Context *ctx, Cons *cons, CodeBuilder *) {
-	cons->println();
 	const char *name = cons->str;
 	cons = cons->cdr;
-	cons->println();
 
 	Cons *args = cons->car;
 	cons = cons->cdr;
-	cons->println();
 
 	Func *func = addfunc(ctx, name, args);
 	CodeBuilder *cb = new CodeBuilder(func);
@@ -78,7 +74,6 @@ static void genCall(Context *ctx, Func *func, Cons *cons, CodeBuilder *cb) {
 }
 
 void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
-	cons->println();
 	if(cons->type == CONS_CAR) {
 		return codegen(ctx, cons->car, cb);
 	} else if(cons->type == CONS_STR) {
@@ -90,6 +85,7 @@ void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
 			for(int i=0; i<ctx->funcLen; i++) {
 				if(strcmp(cons->str, ctx->funcs[i]->name) == 0) {
 					genCall(ctx, ctx->funcs[i], cons->cdr, cb);
+					return;
 				}
 			}
 			fprintf(stderr, "eval error: \n");
