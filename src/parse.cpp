@@ -1,8 +1,5 @@
 #include "lisp.h"
 
-static const char *sstack[64];
-static int sstack_idx = 0;
-
 static bool isSpace(char ch) {
 	return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t';
 }
@@ -11,35 +8,48 @@ static bool isNumber(char ch) {
 	return ch >= '0' && ch <= '9';
 }
 
-Cons *parseExpr(const char *src) {
-	// skip space
+template <class T>
+struct ParseResult {
+	const char *src;
+	T value;
+	bool success;
+
+	static ParseResult<T> make(const char *src, T value, bool success = true) {
+		ParseResult<T> r;
+		r.src = src;
+		r.value = value;
+		r.success = success;
+		return r;
+	}
+};
+
+static ParseResult<int> parseInt(const char *src) {
+	int num = 0;
+	while(isNumber(*src)) {
+		int n = *src - '0';
+		num = num * 10 + n;
+		src++;
+	}
+	return ParseResult<int>::make(src, num);
+}
+
+static ParseResult<Cons *> parseExpr2(const char *src) {
 	while(isSpace(*src)) src++;
 	if(*src == '(') {
-		// S-expression
 		src++;
-		Cons *car = parseExpr(src);
-		src = sstack[--sstack_idx];
-		return newConsCar(car, parseExpr(src));
+		ParseResult<Cons *> res = parseExpr2(src);
+		return ParseResult<Cons *>::make(res.src, newConsCar(res.value, parseExpr(res.src)));
 	} else if(*src == ')') {
 		src++;
-		sstack[sstack_idx++] = src;
-		return NULL;
-	} else if(isNumber(*src) || (*src == '-' && isNumber(src[1]))) {
-		bool isMinus = false;
-		if(*src == '-') {
-			src++;
-			isMinus++;
-		}
-		int num = 0;
-		while(isNumber(*src)) {
-			num *= 10;
-			num += *src - '0';
-			src++;
-		}
-		if(isMinus) num = -num;
-		return newConsI(num, parseExpr(src));
+		return ParseResult<Cons *>::make(src, NULL);
+	} else if(*src == '-' && isNumber(src[1])) {
+		ParseResult<int> res = parseInt(src + 1);
+		return ParseResult<Cons *>::make(res.src, newConsI(-res.value, parseExpr(res.src)));
+	} else if(isNumber(*src)) {
+		ParseResult<int> res = parseInt(src);
+		return ParseResult<Cons *>::make(res.src, newConsI(res.value, parseExpr(res.src)));
 	} else if(*src == '\0') {
-		return NULL;
+		return ParseResult<Cons *>::make(src, NULL);
 	} else {
 		char str[256];
 		int len = 0;
@@ -50,7 +60,11 @@ Cons *parseExpr(const char *src) {
 		str[len] = '\0';
 		char *str2 = new char[len + 1];
 		strcpy(str2, str);
-		return newConsS(str2, parseExpr(src));
+		return ParseResult<Cons *>::make(src, newConsS(str2, parseExpr(src)));
 	}
+}
+
+Cons *parseExpr(const char *src) {
+	return parseExpr2(src).value;
 }
 

@@ -35,6 +35,7 @@ Cons *parseExpr(const char *src);
 Cons *newConsI(int i, Cons *cdr);
 Cons *newConsS(const char *str, Cons *cdr);
 Cons *newConsCar(Cons *car, Cons *cdr);
+void freeCons(Cons *cons);
 
 #define MAP_MAX 256
 class HashMap {

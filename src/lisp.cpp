@@ -1,4 +1,6 @@
 #include "lisp.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 HashMap *funcMap;
 HashMap *varMap;
@@ -53,13 +55,16 @@ void Cons::println(FILE *fp) {
 
 static void interactive() {
 	while(true) {
-		printf(">>");
-		char is[256];
-		if(fgets(is, 256, stdin) == NULL) break;
-		Cons *c = parseExpr(is);
+		char *in = readline(">>");
+		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
+			break;
+		}
+		add_history(in);
+		Cons *c = parseExpr(in);
 		if(c != NULL) {
 			c->eval()->println();
 		}
+		free(in);
 	}
 }
 
