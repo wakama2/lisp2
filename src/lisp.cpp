@@ -2,8 +2,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-HashMap *funcMap;
-HashMap *varMap;
+void *jmptable[256];
 
 Cons *newConsI(int i, Cons *cdr) {
 	Cons *c = new Cons();
@@ -62,7 +61,9 @@ static void interactive() {
 		add_history(in);
 		Cons *c = parseExpr(in);
 		if(c != NULL) {
-			c->eval()->println();
+			CodeBuilder *cb = new CodeBuilder();
+			codegen(c, cb);
+			delete cb;
 		}
 		free(in);
 	}
@@ -76,14 +77,14 @@ static void runFromFile(const char *filename) {
 	fclose(fp);
 
 	//while(true) {
-		Cons *c = parseExpr(is);
+		//Cons *c = parseExpr(is);
 		//if(c == NULL) break;
-		c->eval()->println();
+		//c->eval()->println();
 	//}
 }
 
 int main(int argc, char **argv) {
-	eval_init();
+	//eval_init();
 	if(argc >= 2) {
 		runFromFile(argv[1]);
 	} else {

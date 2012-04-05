@@ -5,6 +5,7 @@ CFLAGS = -O2 -g3 -Wall
 INCDIR = -Iinc
 LIB = -lreadline -lpthread
 SRCS = \
+	src/vm.cpp \
 	src/eval.cpp \
 	src/lisp.cpp \
 	src/map.cpp \

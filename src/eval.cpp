@@ -1,127 +1,56 @@
 #include "lisp.h"
 
-static int evalToInt(Cons *cons);
-
-typedef Cons *(*EvalFunc)(Cons *cons);
-
-// funcs
-static Cons *evalAdd(Cons *cons) {
-	int res = 0;
-	for(; cons != NULL; cons = cons->cdr) {
-		res += evalToInt(cons);
-	}
-	return newConsI(res, NULL);
-}
-
-static Cons *evalMul(Cons *cons) {
-	int res = 1;
-	for(; cons != NULL; cons = cons->cdr) {
-		res *= evalToInt(cons);
-	}
-	return newConsI(res, NULL);
-}
-
-static Cons *evalSub(Cons *cons) {
-	if(cons == NULL) {
-		fprintf(stderr, "eval error: argument require\n");
-		exit(1);
-	}
-	int res = evalToInt(cons);
-	cons = cons->cdr;
-	if(cons == NULL) {
-		return newConsI(-res, NULL);
-	} else {
-		for(; cons != NULL; cons = cons->cdr) {
-			res -= evalToInt(cons);
-		}
-		return newConsI(res, NULL);
-	}
-}
-
-static Cons *evalDiv(Cons *cons) {
-	if(cons == NULL) {
-		fprintf(stderr, "eval error: argument require\n");
-		exit(1);
-	}
-	int res = evalToInt(cons);
-	cons = cons->cdr;
-	for(; cons != NULL; cons = cons->cdr) {
-		int n = evalToInt(cons);
-		if(n == 0) {
-			fprintf(stderr, "Zero division error\n");
-			exit(1);
-		}
-		res /= n;
-	}
-	return newConsI(res, NULL);
-}
-
-//static Cons *evalIf(Cons *cons) {
-//
-//}
-
-static Cons *evalDefun(Cons *cons) {
-	if(cons->type != CONS_STR) {
-		fprintf(stderr, "eval error: wrong type %d\n", cons->type);
-		exit(1);
-	}
-	const char *name = cons->str;
-	cons = cons->cdr;
-	if(cons->type != CONS_CAR) {
-		fprintf(stderr, "eval error: wrong type %d\n", cons->type);
-		exit(1);
-	}
-	Cons *args = cons->car;
-	cons = cons->cdr;
-	if(cons->type != CONS_CAR) {
-		fprintf(stderr, "eval error: wrong type %d\n", cons->type);
-		exit(1);
-	}
-	Cons *expr = cons->car;
-
-	Func *func = new Func();
-	func->name = name;
-	func->args = args;
-	func->expr = expr;
-	return newConsI(0, NULL);
-}
-
-// int value
-static int evalToInt(Cons *cons) {
+static void genIntValue(Cons *cons, CodeBuilder *cb) {
 	if(cons->type == CONS_INT) {
-		return cons->i;
+		cb->addInst(INS_ICONST);
+		cb->addInt(cb->sp);
+		cb->addInt(cons->i);
 	} else if(cons->type == CONS_CAR) {
-		return evalToInt(cons->car->eval());
+		codegen(cons->car, cb);
 	} else {
-		fprintf(stderr, "eval error: wrong type %d\n", cons->type);
+		fprintf(stderr, "integer require\n");
 		exit(1);
 	}
 }
 
-void eval_init() {
-	funcMap = new HashMap();
-	varMap = new HashMap();
+static void genAdd(Cons *cons, CodeBuilder *cb) {
+	if(cons == NULL) return;
+	genIntValue(cons, cb);
+	cons = cons->cdr;
 
-	funcMap->put("+", (void *)evalAdd);
-	funcMap->put("-", (void *)evalSub);
-	funcMap->put("*", (void *)evalMul);
-	funcMap->put("/", (void *)evalDiv);
+	int sp = cb->sp++;
+	for(; cons != NULL; cons = cons->cdr) {
+		genIntValue(cons, cb);
+		cb->addInst(INS_IADD);
+		cb->addInt(sp);
+		cb->addInt(sp+1);
+	}
+	cb->sp--;
 }
 
-Cons *Cons::eval() {
-	if(type == CONS_CAR) {
-		return car->eval();
-	} else if(type == CONS_STR) {
-		EvalFunc f = (EvalFunc)funcMap->get(str);
-		if(f != NULL) {
-			return f(cdr);
+void codegen(Cons *cons, CodeBuilder *cb) {
+	if(cons->type == CONS_CAR) {
+		return codegen(cons->car, cb);
+	} else if(cons->type == CONS_STR) {
+		if(strcmp(cons->str, "+") == 0) {
+			genAdd(cons->cdr, cb);		
+		} else if(strcmp(cons->str, "defun") == 0) {
+
 		} else {
-			fprintf(stderr, "operation not found: %s\n", str);
+			fprintf(stderr, "eval error: \n");
 			exit(1);
 		}
 	} else {
-		fprintf(stderr, "eval error: type is %d\n", type);
+		fprintf(stderr, "eval error: \n");
 		exit(1);
 	}
+}
+
+void CodeBuilder::addInst(int inst) {
+	printf("inst %d\n", inst);
+}
+
+void CodeBuilder::addInt(int n) {
+	printf("%d\n", n);
 }
 

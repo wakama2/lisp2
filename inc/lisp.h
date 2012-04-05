@@ -6,7 +6,7 @@
 #include <string.h>
 #include <pthread.h>
 
-struct Worker {
+struct WorkerThread {
 	pthread_t pth;
 };
 
@@ -28,7 +28,7 @@ struct Cons {
 	//---------------------------------
 	void print(FILE *fp = stdout);
 	void println(FILE *fp = stdout);
-	Cons *eval();
+	//Cons *eval();
 };
 
 Cons *parseExpr(const char *src);
@@ -37,26 +37,64 @@ Cons *newConsS(const char *str, Cons *cdr);
 Cons *newConsCar(Cons *car, Cons *cdr);
 void freeCons(Cons *cons);
 
-#define MAP_MAX 256
-class HashMap {
-private:
-	const char *keys[MAP_MAX];
-	void *values[MAP_MAX];
-public:
-	HashMap();
-	void put(const char *key, void *value);
-	void *get(const char *key);
+struct Func;
+struct Code {
+	union {
+		int i;
+		void *ptr;
+		Func *func;
+	};
+};
+extern void *jmptable[256];
+
+enum {
+	// [r1] = v2
+	INS_ICONST,
+	// [r1] += [r2]
+	INS_IADD,
+	INS_ISUB,
+	INS_IMUL,
+	INS_IDIV,
+	INS_IMOD,
+	// [r1] < [r2] then jmp pc+[r3]
+	INS_IJMPLT,
+	INS_IJMPLE,
+	INS_IJMPGT,
+	INS_IJMPGE,
+	INS_IJMPEQ,
+	INS_IJMPNE,
+	// call [func]
+	INS_CALL,
+	// ret [r1]
+	INS_RET,
+	// print [r1]
+	INS_IPRINT, // for debug
+	INS_TNILPRINT,
+	INS_EXIT,
 };
 
 struct Func {
 	const char *name;
 	Cons *args;
 	Cons *expr;
+	Code *code;
+};
+void vmrun(WorkerThread *wth);
+
+
+struct Context {
+	Func *funcs[256];
+	int funcLen;
 };
 
-void eval_init();
-extern HashMap *funcMap;
-extern HashMap *varMap;
+class CodeBuilder {
+public:
+	int sp;
+	void addInst(int inst);
+	void addInt(int n);
+};
+
+void codegen(Cons *cons, CodeBuilder *cb);
 
 #endif
 
