@@ -1,5 +1,29 @@
 #include "lisp.h"
 
+static Cons *newConsI(int i, Cons *cdr) {
+	Cons *c = new Cons();
+	c->type = CONS_INT;
+	c->i = i;
+	c->cdr = cdr;
+	return c;
+}
+
+static Cons *newConsS(const char *str, Cons *cdr) {
+	Cons *c = new Cons();
+	c->type = CONS_STR;
+	c->str = str;
+	c->cdr = cdr;
+	return c;
+}
+
+static Cons *newConsCar(Cons *car, Cons *cdr) {
+	Cons *c = new Cons();
+	c->type = CONS_CAR;
+	c->car = car;
+	c->cdr = cdr;
+	return c;
+}
+
 static bool isSpace(char ch) {
 	return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t';
 }

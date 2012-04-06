@@ -84,9 +84,6 @@ struct ParseResult {
 };
 
 ParseResult<Cons *> parseExpr(const char *src);
-Cons *newConsI(int i, Cons *cdr);
-Cons *newConsS(const char *str, Cons *cdr);
-Cons *newConsCar(Cons *car, Cons *cdr);
 
 //------------------------------------------------------
 // code

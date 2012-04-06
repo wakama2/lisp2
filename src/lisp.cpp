@@ -4,30 +4,6 @@
 
 void *jmptable[256];
 
-Cons *newConsI(int i, Cons *cdr) {
-	Cons *c = new Cons();
-	c->type = CONS_INT;
-	c->i = i;
-	c->cdr = cdr;
-	return c;
-}
-
-Cons *newConsS(const char *str, Cons *cdr) {
-	Cons *c = new Cons();
-	c->type = CONS_STR;
-	c->str = str;
-	c->cdr = cdr;
-	return c;
-}
-
-Cons *newConsCar(Cons *car, Cons *cdr) {
-	Cons *c = new Cons();
-	c->type = CONS_CAR;
-	c->car = car;
-	c->cdr = cdr;
-	return c;
-}
-
 void Cons::print(FILE *fp) {
 	bool b = false;
 	Cons *self = this;
