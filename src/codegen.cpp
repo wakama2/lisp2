@@ -1,5 +1,14 @@
 #include "lisp.h"
 
+const char *getInstName(int inst) {
+	switch(inst) {
+#define I(a) case a: return #a;
+#include "inst"
+#undef I
+		default: return "";
+	}
+}
+
 static void genIntValue(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	if(cons->type == CONS_INT) {
 		cb->createIConst(cb->sp, cons->i);
@@ -19,11 +28,10 @@ static void genIntValue(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	}
 }
 
-static void genAdd(Context *ctx, Cons *cons, CodeBuilder *cb) {
+static void genAdd(Context *ctx, Func *func/*unused*/, Cons *cons, CodeBuilder *cb) {
 	if(cons == NULL) return;
 	genIntValue(ctx, cons, cb);
 	cons = cons->cdr;
-
 	int sp = cb->sp++;
 	for(; cons != NULL; cons = cons->cdr) {
 		genIntValue(ctx, cons, cb);
@@ -32,7 +40,7 @@ static void genAdd(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	cb->sp--;
 }
 
-static void genSub(Context *ctx, Cons *cons, CodeBuilder *cb) {
+static void genSub(Context *ctx, Func *func/*unused*/, Cons *cons, CodeBuilder *cb) {
 	if(cons == NULL) return;
 	genIntValue(ctx, cons, cb);
 	cons = cons->cdr;
@@ -49,14 +57,6 @@ static void genSub(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	
 }
 
-static void genLt(Context *ctx, Cons *cons, CodeBuilder *cb) {
-	genIntValue(ctx, cons, cb);
-	cb->sp++;
-	genIntValue(ctx, cons->cdr, cb);
-	cb->sp--;
-	cb->addInst(INS_IJMPGE);
-}
-
 static Func *addfunc(Context *ctx, const char *name, Cons *args) {
 	Func *f = new Func();
 	f->name = name;
@@ -68,7 +68,44 @@ static Func *addfunc(Context *ctx, const char *name, Cons *args) {
 	return f;
 }
 
-static void genDefun(Context *ctx, Cons *cons, CodeBuilder *) {
+static int toOp(const char *s) {
+	if(strcmp(s, "<") == 0)  return INS_IJMPGE;
+	if(strcmp(s, "<=") == 0) return INS_IJMPGT;
+	if(strcmp(s, ">") == 0)  return INS_IJMPLE;
+	if(strcmp(s, ">=") == 0) return INS_IJMPLT;
+	if(strcmp(s, "==") == 0) return INS_IJMPNE;
+	if(strcmp(s, "!=") == 0) return INS_IJMPEQ;
+	return -1;
+}
+
+static void genIf(Context *ctx, Func *func/*unused*/, Cons *cons, CodeBuilder *cb) {
+	Cons *cond = cons->car;
+	cons = cons->cdr;
+	Cons *thenCons = cons;
+	cons = cons->cdr;
+	Cons *elseCons = cons;
+
+	// cond
+	int op = toOp(cond->str);
+	assert(op != -1);
+	genIntValue(ctx, cond->cdr, cb);
+	cb->sp++;
+	genIntValue(ctx, cond->cdr->cdr, cb);
+	cb->sp--;
+	int label = cb->createCondOp(op, cb->sp, cb->sp+1);
+
+	// then expr
+	genIntValue(ctx, thenCons, cb);
+	int merge = cb->createJmp();
+
+	// else expr
+	cb->setLabel(label);
+	genIntValue(ctx, elseCons, cb);
+
+	cb->setLabel(merge);
+}
+
+static void genDefun(Context *ctx, Func * /*unused*/, Cons *cons, CodeBuilder *) {
 	const char *name = cons->str;
 	cons = cons->cdr;
 	Cons *args = cons->car;
@@ -96,11 +133,13 @@ void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
 		return codegen(ctx, cons->car, cb);
 	} else if(cons->type == CONS_STR) {
 		if(strcmp(cons->str, "+") == 0) {
-			genAdd(ctx, cons->cdr, cb);		
+			genAdd(ctx, NULL, cons->cdr, cb);		
 		} else if(strcmp(cons->str, "-") == 0) {
-			genSub(ctx, cons->cdr, cb);		
+			genSub(ctx, NULL, cons->cdr, cb);		
 		} else if(strcmp(cons->str, "defun") == 0) {
-			genDefun(ctx, cons->cdr, cb);
+			genDefun(ctx, NULL, cons->cdr, cb);
+		} else if(strcmp(cons->str, "if") == 0) {
+			genIf(ctx, NULL, cons->cdr, cb);
 		} else {
 			for(int i=0; i<ctx->funcLen; i++) {
 				if(strcmp(cons->str, ctx->funcs[i]->name) == 0) {

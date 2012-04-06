@@ -16,7 +16,6 @@ OBJS = $(SRCS:.cpp=.o)
 
 $(TARGET): $(HEADERS) $(OBJS)
 	$(CC) $(CFLAGS) $(INCDIR) -o $@ $(OBJS) $(LIB)
-	#$(CC) $(CFLAGS) $(INCDIR) $(LIB) -o $@ $(OBJS)
 
 .SUFFIXES: .cpp.o
 .cpp.o: $(HEADERS)

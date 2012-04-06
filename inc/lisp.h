@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <pthread.h>
 
 struct Code;
@@ -99,34 +100,12 @@ struct Code {
 extern void *jmptable[256];
 
 enum {
-	// [r1] = v2
-	INS_ICONST,
-	// [r1] = [v2]
-	INS_IMOV,
-	// [r1] += [r2]
-	INS_IADD,
-	INS_ISUB,
-	INS_IMUL,
-	INS_IDIV,
-	INS_IMOD,
-	// [r1] *= -1
-	INS_INEG,
-	// [r1] < [r2] then jmp pc+[r3]
-	INS_IJMPLT,
-	INS_IJMPLE,
-	INS_IJMPGT,
-	INS_IJMPGE,
-	INS_IJMPEQ,
-	INS_IJMPNE,
-	// call [func], shift, rix
-	INS_CALL,
-	// ret [r1]
-	INS_RET,
-	// print [r1]
-	INS_IPRINT, // for debug
-	INS_TNILPRINT,
-	INS_EXIT,
+#define I(a) a,
+#include "inst"
+#undef I
 };
+
+const char *getInstName(int inst);
 
 //------------------------------------------------------
 // code generator
@@ -143,6 +122,7 @@ public:
 	int ci;
 	int sp;
 	void addInst(int inst) {
+		printf("%03d: %s\n", ci, getInstName(inst));
 		code[ci++].ptr = jmptable[inst];
 	}
 	void addInt(int n) {
@@ -166,6 +146,21 @@ public:
 		addInt(r);
 		addInt(a);
 	}
+	// return label
+	int createCondOp(int inst, int a, int b) {
+		int lb = ci;
+		addInst(inst);
+		addInt(0);
+		addInt(a);
+		addInt(b);
+		return lb;
+	}
+	int createJmp() {
+		int lb = ci;
+		addInst(INS_JMP);
+		addInt(0);
+		return lb;
+	}
 	void createIAdd(int r, int a) { createOp(INS_IADD, r, a); }
 	void createISub(int r, int a) { createOp(INS_ISUB, r, a); }
 	void createIMul(int r, int a) { createOp(INS_IMUL, r, a); }
@@ -182,6 +177,9 @@ public:
 		addInt(rix);
 	}
 	void createRet() { addInst(INS_RET); }
+	void setLabel(int n) {
+		code[n + 1].i = ci - n;
+	}
 	void accept(Func *func) {
 		func->code = code;
 	}

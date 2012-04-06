@@ -2,91 +2,78 @@
 
 void vmrun(WorkerThread *wth) {
 	if(wth == NULL) {
-		jmptable[INS_ICONST] = &&L_ICONST;
-		jmptable[INS_IMOV] = &&L_IMOV;
-		jmptable[INS_IADD] = &&L_IADD;
-		jmptable[INS_ISUB] = &&L_ISUB;
-		jmptable[INS_IMUL] = &&L_IMUL;
-		jmptable[INS_IDIV] = &&L_IDIV;
-		jmptable[INS_IMOD] = &&L_IMOD;
-		jmptable[INS_INEG] = &&L_INEG;
-		jmptable[INS_IJMPLT] = &&L_IJMPLT;
-		jmptable[INS_IJMPLE] = &&L_IJMPLE;
-		jmptable[INS_IJMPGT] = &&L_IJMPGT;
-		jmptable[INS_IJMPGE] = &&L_IJMPGE;
-		jmptable[INS_IJMPEQ] = &&L_IJMPEQ;
-		jmptable[INS_IJMPNE] = &&L_IJMPNE;
-		jmptable[INS_CALL] = &&L_CALL;
-		jmptable[INS_RET] = &&L_RET;
-		jmptable[INS_IPRINT] = &&L_IPRING;
-		jmptable[INS_TNILPRINT] = &&L_TNILPRINT;
-		jmptable[INS_EXIT] = &&L_EXIT;
+#define I(a) jmptable[a] = &&L_##a;
+#include "inst"
+#undef I
 		return;
 	}
 
 	register Code *pc = wth->pc;
 	register int *sfp = wth->stack;
 	register Frame *fp = wth->frame;
-
 	goto *(pc->ptr);
 
-L_ICONST:
+L_INS_ICONST:
 	sfp[pc[1].i] = pc[2].i;
 	goto *((pc += 3)->ptr);
 	
-L_IMOV:
+L_INS_IMOV:
 	sfp[pc[1].i] = sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
-L_IADD:
+L_INS_IADD:
 	sfp[pc[1].i] += sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
-L_ISUB:
+L_INS_ISUB:
 	sfp[pc[1].i] -= sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
-L_IMUL:
+L_INS_IMUL:
 	sfp[pc[1].i] *= sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
-L_IDIV:
+L_INS_IDIV:
 	sfp[pc[1].i] /= sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
-L_IMOD:
+L_INS_IMOD:
 	sfp[pc[1].i] %= sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
-L_INEG:
+L_INS_INEG:
 	sfp[pc[1].i] = -sfp[pc[1].i];
 	goto *((pc += 2)->ptr);
 
-L_IJMPLT:
-	pc += (sfp[pc[1].i] < sfp[pc[2].i]) ? pc[3].i : 4;
+L_INS_IJMPLT:
+	pc += (sfp[pc[2].i] < sfp[pc[3].i]) ? pc[1].i : 4;
 	goto *(pc->ptr);
 
-L_IJMPLE:
-	pc += (sfp[pc[1].i] <= sfp[pc[2].i]) ? pc[3].i : 4;
+L_INS_IJMPLE:
+	pc += (sfp[pc[2].i] <= sfp[pc[3].i]) ? pc[1].i : 4;
 	goto *(pc->ptr);
 
-L_IJMPGT:
-	pc += (sfp[pc[1].i] > sfp[pc[2].i]) ? pc[3].i : 4;
+L_INS_IJMPGT:
+	pc += (sfp[pc[2].i] > sfp[pc[3].i]) ? pc[1].i : 4;
 	goto *(pc->ptr);
 
-L_IJMPGE:
-	pc += (sfp[pc[1].i] >= sfp[pc[2].i]) ? pc[3].i : 4;
+L_INS_IJMPGE:
+	pc += (sfp[pc[2].i] >= sfp[pc[3].i]) ? pc[1].i : 4;
 	goto *(pc->ptr);
 
-L_IJMPEQ:
-	pc += (sfp[pc[1].i] == sfp[pc[2].i]) ? pc[3].i : 4;
+L_INS_IJMPEQ:
+	pc += (sfp[pc[2].i] == sfp[pc[3].i]) ? pc[1].i : 4;
 	goto *(pc->ptr);
 
-L_IJMPNE:
-	pc += (sfp[pc[1].i] != sfp[pc[2].i]) ? pc[3].i : 4;
+L_INS_IJMPNE:
+	pc += (sfp[pc[2].i] != sfp[pc[3].i]) ? pc[1].i : 4;
 	goto *(pc->ptr);
 
-L_CALL:
+L_INS_JMP:
+	pc += pc[1].i;
+	goto *(pc->ptr);
+
+L_INS_CALL:
 	fp->sfp = sfp;
 	fp->pc = pc + 4;
 	fp->rix = pc[3].i;
@@ -95,7 +82,7 @@ L_CALL:
 	pc = pc[1].func->code;
 	goto *(pc->ptr);
 
-L_RET: {
+L_INS_RET: {
 		fp--;
 		int rval = sfp[0];
 		pc = fp->pc;
@@ -104,15 +91,15 @@ L_RET: {
 	}
 	goto *(pc->ptr);
 
-L_IPRING:
+L_INS_IPRINT:
 	printf("%d\n", sfp[pc[1].i]);
 	goto *((pc += 2)->ptr);
 
-L_TNILPRINT:
+L_INS_TNILPRINT:
 	printf("%s\n", sfp[pc[1].i] ? "T" : "Nil");
 	goto *((pc += 2)->ptr);
 
-L_EXIT:
+L_INS_EXIT:
 	return;
 }
 
