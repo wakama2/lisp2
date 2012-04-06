@@ -2,6 +2,8 @@
 
 void vmrun(WorkerThread *wth) {
 	if(wth == NULL) {
+		jmptable[INS_ICONST] = &&L_ICONST;
+		jmptable[INS_IARG] = &&L_IARG;
 		jmptable[INS_IADD] = &&L_IADD;
 		jmptable[INS_ISUB] = &&L_ISUB;
 		jmptable[INS_IMUL] = &&L_IMUL;
@@ -21,26 +23,85 @@ void vmrun(WorkerThread *wth) {
 		return;
 	}
 
-	register Code *pc;
-	register int *sfp;
+	register Code *pc = wth->pc;
+	register int *sfp = wth->stack;
+	register Frame *fp = wth->frame;
 
 	goto *(pc->ptr);
 
+L_ICONST:
+	sfp[pc[1].i] = pc[2].i;
+	goto *((pc += 3)->ptr);
+	
+L_IARG:
+	sfp[pc[1].i] = pc[2].i;
+	goto *((pc += 3)->ptr);
+
 L_IADD:
+	sfp[pc[1].i] += sfp[pc[2].i];
+	goto *((pc += 3)->ptr);
+
 L_ISUB:
+	sfp[pc[1].i] -= sfp[pc[2].i];
+	goto *((pc += 3)->ptr);
+
 L_IMUL:
+	sfp[pc[1].i] *= sfp[pc[2].i];
+	goto *((pc += 3)->ptr);
+
 L_IDIV:
+	sfp[pc[1].i] /= sfp[pc[2].i];
+	goto *((pc += 3)->ptr);
+
 L_IMOD:
+	sfp[pc[1].i] %= sfp[pc[2].i];
+	goto *((pc += 3)->ptr);
+
 L_IJMPLT:
+	pc += (sfp[pc[1].i] < sfp[pc[2].i]) ? pc[3].i : 4;
+	goto *(pc->ptr);
+
 L_IJMPLE:
+	pc += (sfp[pc[1].i] <= sfp[pc[2].i]) ? pc[3].i : 4;
+	goto *(pc->ptr);
+
 L_IJMPGT:
+	pc += (sfp[pc[1].i] > sfp[pc[2].i]) ? pc[3].i : 4;
+	goto *(pc->ptr);
+
 L_IJMPGE:
+	pc += (sfp[pc[1].i] >= sfp[pc[2].i]) ? pc[3].i : 4;
+	goto *(pc->ptr);
+
 L_IJMPEQ:
+	pc += (sfp[pc[1].i] == sfp[pc[2].i]) ? pc[3].i : 4;
+	goto *(pc->ptr);
+
 L_IJMPNE:
+	pc += (sfp[pc[1].i] != sfp[pc[2].i]) ? pc[3].i : 4;
+	goto *(pc->ptr);
+
 L_CALL:
+	fp->sfp = sfp;
+	fp->pc = pc + 2;
+	fp++;
+	sfp += pc[2].i;
+	pc = pc[1].func->code;
+	goto *(pc->ptr);
+
 L_RET:
+	fp--;
+	pc = fp->pc;
+	sfp = fp->sfp;
+	goto *(pc->ptr);
+
 L_IPRING:
+	printf("%d\n", sfp[pc[1].i]);
+	goto *((pc += 2)->ptr);
+
 L_TNILPRINT:
+	printf("%s\n", sfp[pc[1].i] ? "T" : "Nil");
+	goto *((pc += 2)->ptr);
 
 L_EXIT:
 	return;

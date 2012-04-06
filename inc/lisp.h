@@ -7,9 +7,18 @@
 #include <pthread.h>
 
 struct Context;
+struct Code;
+
+struct Frame {
+	int *sfp;
+	Code *pc;
+};
 
 struct WorkerThread {
 	pthread_t pth;
+	Code *pc;
+	int stack[256];
+	Frame frame[256];
 };
 
 enum {
@@ -66,7 +75,7 @@ enum {
 	INS_IJMPGE,
 	INS_IJMPEQ,
 	INS_IJMPNE,
-	// call [func]
+	// call [func], sfp
 	INS_CALL,
 	// ret [r1]
 	INS_RET,
