@@ -22,8 +22,8 @@ struct Frame {
 struct WorkerThread {
 	pthread_t pth;
 	Code *pc;
-	int stack[256];
 	Frame frame[256];
+	int stack[1024];
 };
 
 struct Context {

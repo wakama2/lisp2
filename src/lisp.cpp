@@ -72,7 +72,10 @@ static void runCons(Context *ctx, Cons *cons) {
 	delete cb;
 }
 
+#define HISTFILE ".history"
+
 static void interactive(Context *ctx) {
+	read_history(HISTFILE);
 	while(true) {
 		char *in = readline(">>");
 		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
@@ -82,6 +85,7 @@ static void interactive(Context *ctx) {
 		Cons *c = parseExpr(in).value;
 		runCons(ctx, c);
 		free(in);
+		write_history(HISTFILE);
 	}
 }
 
