@@ -3,7 +3,7 @@
 void vmrun(WorkerThread *wth) {
 	if(wth == NULL) {
 		jmptable[INS_ICONST] = &&L_ICONST;
-		jmptable[INS_IARG] = &&L_IARG;
+		jmptable[INS_IMOV] = &&L_IMOV;
 		jmptable[INS_IADD] = &&L_IADD;
 		jmptable[INS_ISUB] = &&L_ISUB;
 		jmptable[INS_IMUL] = &&L_IMUL;
@@ -33,8 +33,8 @@ L_ICONST:
 	sfp[pc[1].i] = pc[2].i;
 	goto *((pc += 3)->ptr);
 	
-L_IARG:
-	sfp[pc[1].i] = pc[2].i;
+L_IMOV:
+	sfp[pc[1].i] = sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
 L_IADD:
@@ -83,16 +83,20 @@ L_IJMPNE:
 
 L_CALL:
 	fp->sfp = sfp;
-	fp->pc = pc + 2;
+	fp->pc = pc + 4;
+	fp->rix = pc[3].i;
 	fp++;
 	sfp += pc[2].i;
 	pc = pc[1].func->code;
 	goto *(pc->ptr);
 
-L_RET:
-	fp--;
-	pc = fp->pc;
-	sfp = fp->sfp;
+L_RET: {
+		fp--;
+		int rval = sfp[0];
+		pc = fp->pc;
+		sfp = fp->sfp;
+		sfp[fp->rix] = rval;
+	}
 	goto *(pc->ptr);
 
 L_IPRING:

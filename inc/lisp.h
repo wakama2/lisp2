@@ -12,6 +12,7 @@ struct Code;
 struct Frame {
 	int *sfp;
 	Code *pc;
+	int rix;
 };
 
 struct WorkerThread {
@@ -61,7 +62,8 @@ extern void *jmptable[256];
 enum {
 	// [r1] = v2
 	INS_ICONST,
-	INS_IARG,
+	// [r1] = [v2]
+	INS_IMOV,
 	// [r1] += [r2]
 	INS_IADD,
 	INS_ISUB,
@@ -75,7 +77,7 @@ enum {
 	INS_IJMPGE,
 	INS_IJMPEQ,
 	INS_IJMPNE,
-	// call [func], sfp
+	// call [func], shift, rix
 	INS_CALL,
 	// ret [r1]
 	INS_RET,
@@ -108,9 +110,11 @@ public:
 		func = f;
 		code = new Code[256];
 		sp = 0;
+		ci = 0;
 	}
 	Func *func;
 	Code *code;
+	int ci;
 	int sp;
 	void addInst(int inst);
 	void addInt(int n);

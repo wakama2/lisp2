@@ -63,6 +63,13 @@ static void interactive(Context *ctx) {
 		if(c != NULL) {
 			CodeBuilder *cb = new CodeBuilder();
 			codegen(ctx, c, cb);
+			cb->addInst(INS_EXIT);
+
+			WorkerThread *wth = new WorkerThread();
+			wth->pc = cb->code;
+			vmrun(wth);
+			printf("%d\n", wth->stack[0]);
+			delete wth;
 			delete cb;
 		}
 		free(in);
@@ -84,6 +91,7 @@ static void runFromFile(const char *filename, Context *ctx) {
 }
 
 int main(int argc, char **argv) {
+	vmrun(NULL);
 	Context *ctx = new Context();
 	if(argc >= 2) {
 		runFromFile(argv[1], ctx);

@@ -9,9 +9,9 @@ static void genIntValue(Context *ctx, Cons *cons, CodeBuilder *cb) {
 		Func *func = cb->func;
 		for(int i=0; i<func->argc; i++) {
 			if(strcmp(cons->str, func->args[i]) == 0) {
-				cb->addInst(INS_IARG);
+				cb->addInst(INS_IMOV);
 				cb->addInt(cb->sp);
-				cb->addInt(i);
+				cb->addInt(i - func->argc);
 				break;
 			}
 		}
@@ -59,6 +59,8 @@ static void genDefun(Context *ctx, Cons *cons, CodeBuilder *) {
 	Func *func = addfunc(ctx, name, args);
 	CodeBuilder *cb = new CodeBuilder(func);
 	codegen(ctx, cons, cb);
+	cb->addInst(INS_RET);
+	cb->addInt(0);
 	cb->accept(func);
 	delete cb;
 }
@@ -71,6 +73,9 @@ static void genCall(Context *ctx, Func *func, Cons *cons, CodeBuilder *cb) {
 	}
 	cb->addInst(INS_CALL);
 	cb->addFunc(func);
+	cb->addInt(cb->sp); // shift
+	cb->addInt(sp); // rix
+	cb->sp = sp;
 }
 
 void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
@@ -98,15 +103,15 @@ void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
 }
 
 void CodeBuilder::addInst(int inst) {
-	printf("inst %d\n", inst);
+	code[ci++].ptr = jmptable[inst];
 }
 
 void CodeBuilder::addInt(int n) {
-	printf("%d\n", n);
+	code[ci++].i = n;
 }
 
 void CodeBuilder::addFunc(Func *func) {
-	printf("%s\n", func->name);
+	code[ci++].func = func;
 }
 
 void CodeBuilder::accept(Func *func) {
