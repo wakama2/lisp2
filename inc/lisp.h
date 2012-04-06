@@ -6,8 +6,11 @@
 #include <string.h>
 #include <pthread.h>
 
-struct Context;
 struct Code;
+struct Func;
+
+//------------------------------------------------------
+// context
 
 struct Frame {
 	int *sfp;
@@ -21,6 +24,20 @@ struct WorkerThread {
 	int stack[256];
 	Frame frame[256];
 };
+
+struct Context {
+	Func *funcs[256];
+	int funcLen;
+
+	Context() {
+		funcLen = 0;
+	}
+};
+
+void vmrun(WorkerThread *wth);
+
+//------------------------------------------------------
+// cons
 
 enum {
 	CONS_INT,
@@ -37,19 +54,41 @@ struct Cons {
 	};
 	Cons *cdr;
 
-	//---------------------------------
 	void print(FILE *fp = stdout);
 	void println(FILE *fp = stdout);
-	//Cons *eval();
 };
 
-Cons *parseExpr(const char *src);
+struct Func {
+	const char *name;
+	int argc;
+	const char *args[64];
+	Code *code;
+};
+
+//------------------------------------------------------
+// parser
+template <class T>
+struct ParseResult {
+	const char *src;
+	T value;
+	bool success;
+
+	static ParseResult<T> make(const char *src, T value, bool success = true) {
+		ParseResult<T> r;
+		r.src = src;
+		r.value = value;
+		r.success = success;
+		return r;
+	}
+};
+
+ParseResult<Cons *> parseExpr(const char *src);
 Cons *newConsI(int i, Cons *cdr);
 Cons *newConsS(const char *str, Cons *cdr);
 Cons *newConsCar(Cons *car, Cons *cdr);
-void freeCons(Cons *cons);
 
-struct Func;
+//------------------------------------------------------
+// code
 struct Code {
 	union {
 		int i;
@@ -89,23 +128,8 @@ enum {
 	INS_EXIT,
 };
 
-struct Func {
-	const char *name;
-	int argc;
-	const char *args[64];
-	Code *code;
-};
-void vmrun(WorkerThread *wth);
-
-struct Context {
-	Func *funcs[256];
-	int funcLen;
-
-	Context() {
-		funcLen = 0;
-	}
-};
-
+//------------------------------------------------------
+// code generator
 class CodeBuilder {
 public:
 	CodeBuilder(Func *f = NULL) {
@@ -118,10 +142,49 @@ public:
 	Code *code;
 	int ci;
 	int sp;
-	void addInst(int inst);
-	void addInt(int n);
-	void addFunc(Func *func);
-	void accept(Func *func);
+	void addInst(int inst) {
+		code[ci++].ptr = jmptable[inst];
+	}
+	void addInt(int n) {
+		code[ci++].i = n;
+	}
+	void addFunc(Func *func) {
+		code[ci++].func = func;
+	}
+	void createIConst(int r, int i) {
+		addInst(INS_ICONST);
+		addInt(r);
+		addInt(i);
+	}
+	void createMov(int r, int n) {
+		addInst(INS_IMOV);
+		addInt(r);
+		addInt(n);
+	}
+	void createOp(int inst, int r, int a) {
+		addInst(inst);
+		addInt(r);
+		addInt(a);
+	}
+	void createIAdd(int r, int a) { createOp(INS_IADD, r, a); }
+	void createISub(int r, int a) { createOp(INS_ISUB, r, a); }
+	void createIMul(int r, int a) { createOp(INS_IMUL, r, a); }
+	void createIDiv(int r, int a) { createOp(INS_IDIV, r, a); }
+	void createIMod(int r, int a) { createOp(INS_IMOD, r, a); }
+	void createINeg(int r) {
+		addInst(INS_INEG);
+		addInt(r);
+	}
+	void createCall(Func *func, int shift, int rix) {
+		addInst(INS_CALL);
+		addFunc(func);
+		addInt(shift);
+		addInt(rix);
+	}
+	void createRet() { addInst(INS_RET); }
+	void accept(Func *func) {
+		func->code = code;
+	}
 };
 
 void codegen(Context *ctx, Cons *cons, CodeBuilder *cb);

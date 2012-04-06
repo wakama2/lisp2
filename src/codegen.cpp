@@ -2,16 +2,12 @@
 
 static void genIntValue(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	if(cons->type == CONS_INT) {
-		cb->addInst(INS_ICONST);
-		cb->addInt(cb->sp);
-		cb->addInt(cons->i);
+		cb->createIConst(cb->sp, cons->i);
 	} else if(cons->type == CONS_STR && cb->func != NULL) {
 		Func *func = cb->func;
 		for(int i=0; i<func->argc; i++) {
 			if(strcmp(cons->str, func->args[i]) == 0) {
-				cb->addInst(INS_IMOV);
-				cb->addInt(cb->sp);
-				cb->addInt(i - func->argc);
+				cb->createMov(cb->sp, i - func->argc);
 				break;
 			}
 		}
@@ -31,9 +27,7 @@ static void genAdd(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	int sp = cb->sp++;
 	for(; cons != NULL; cons = cons->cdr) {
 		genIntValue(ctx, cons, cb);
-		cb->addInst(INS_IADD);
-		cb->addInt(sp);
-		cb->addInt(sp+1);
+		cb->createIAdd(sp, sp+1);
 	}
 	cb->sp--;
 }
@@ -43,16 +37,13 @@ static void genSub(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	genIntValue(ctx, cons, cb);
 	cons = cons->cdr;
 	if(cons == NULL) {
-		cb->addInst(INS_INEG);
-		cb->addInt(cb->sp);
+		cb->createINeg(cb->sp);
 		return;
 	}
 	int sp = cb->sp++;
 	for(; cons != NULL; cons = cons->cdr) {
 		genIntValue(ctx, cons, cb);
-		cb->addInst(INS_ISUB);
-		cb->addInt(sp);
-		cb->addInt(sp+1);
+		cb->createISub(sp, sp + 1);
 	}
 	cb->sp--;
 	
@@ -80,15 +71,12 @@ static Func *addfunc(Context *ctx, const char *name, Cons *args) {
 static void genDefun(Context *ctx, Cons *cons, CodeBuilder *) {
 	const char *name = cons->str;
 	cons = cons->cdr;
-
 	Cons *args = cons->car;
 	cons = cons->cdr;
-
 	Func *func = addfunc(ctx, name, args);
 	CodeBuilder *cb = new CodeBuilder(func);
 	codegen(ctx, cons, cb);
-	cb->addInst(INS_RET);
-	cb->addInt(0);
+	cb->createRet();
 	cb->accept(func);
 	delete cb;
 }
@@ -99,10 +87,7 @@ static void genCall(Context *ctx, Func *func, Cons *cons, CodeBuilder *cb) {
 		genIntValue(ctx, cons, cb);
 		cb->sp++;
 	}
-	cb->addInst(INS_CALL);
-	cb->addFunc(func);
-	cb->addInt(cb->sp); // shift
-	cb->addInt(sp); // rix
+	cb->createCall(func, cb->sp, sp);
 	cb->sp = sp;
 }
 
@@ -130,21 +115,5 @@ void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
 		fprintf(stderr, "eval error: \n");
 		exit(1);
 	}
-}
-
-void CodeBuilder::addInst(int inst) {
-	code[ci++].ptr = jmptable[inst];
-}
-
-void CodeBuilder::addInt(int n) {
-	code[ci++].i = n;
-}
-
-void CodeBuilder::addFunc(Func *func) {
-	code[ci++].func = func;
-}
-
-void CodeBuilder::accept(Func *func) {
-	func->code = code;
 }
 

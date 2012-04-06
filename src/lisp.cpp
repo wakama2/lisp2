@@ -52,6 +52,26 @@ void Cons::println(FILE *fp) {
 	fprintf(fp, "\n");
 }
 
+static void runCons(Context *ctx, Cons *cons) {
+	if(cons->type == CONS_CAR) {
+		for(; cons != NULL; cons = cons->cdr) {
+			cons->println();
+			runCons(ctx, cons->car);
+		}
+		return;
+	}
+	CodeBuilder *cb = new CodeBuilder();
+	codegen(ctx, cons, cb);
+	cb->addInst(INS_EXIT);
+
+	WorkerThread *wth = new WorkerThread();
+	wth->pc = cb->code;
+	vmrun(wth);
+	printf("%d\n", wth->stack[0]);
+	delete wth;
+	delete cb;
+}
+
 static void interactive(Context *ctx) {
 	while(true) {
 		char *in = readline(">>");
@@ -59,19 +79,8 @@ static void interactive(Context *ctx) {
 			break;
 		}
 		add_history(in);
-		Cons *c = parseExpr(in);
-		if(c != NULL) {
-			CodeBuilder *cb = new CodeBuilder();
-			codegen(ctx, c, cb);
-			cb->addInst(INS_EXIT);
-
-			WorkerThread *wth = new WorkerThread();
-			wth->pc = cb->code;
-			vmrun(wth);
-			printf("%d\n", wth->stack[0]);
-			delete wth;
-			delete cb;
-		}
+		Cons *c = parseExpr(in).value;
+		runCons(ctx, c);
 		free(in);
 	}
 }
@@ -80,14 +89,20 @@ static void runFromFile(const char *filename, Context *ctx) {
 	FILE *fp = fopen(filename, "r");
 	if(fp == NULL) return;
 	char is[256];
-	fgets(is, 256, fp);
+	int size = fread(is, 1, 256, fp);
 	fclose(fp);
+	is[size] = '\0';
 
-	//while(true) {
-		//Cons *c = parseExpr(is);
-		//if(c == NULL) break;
-		//c->eval()->println();
-	//}
+	const char *src = is;
+	while(true) {
+		ParseResult<Cons *> res = parseExpr(src);
+		if(res.success) {
+			src = res.src;
+			runCons(ctx, res.value);
+		} else {
+			break;
+		}
+	}
 }
 
 int main(int argc, char **argv) {
