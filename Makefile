@@ -8,7 +8,6 @@ SRCS = \
 	src/vm.cpp \
 	src/codegen.cpp \
 	src/lisp.cpp \
-	src/map.cpp \
 	src/parse.cpp
 HEADERS = \
 	inc/lisp.h
