@@ -1,0 +1,31 @@
+// [r1] = v2
+I(INS_ICONST)
+// [r1] = [v2]
+I(INS_IMOV)
+// [r1] += [r2]
+I(INS_IADD)
+I(INS_ISUB)
+I(INS_IMUL)
+I(INS_IDIV)
+I(INS_IMOD)
+// [r1] *= -1
+I(INS_INEG)
+// jmp pc+[r1] if [r1] < [r2]
+I(INS_IJMPLT)
+I(INS_IJMPLE)
+I(INS_IJMPGT)
+I(INS_IJMPGE)
+I(INS_IJMPEQ)
+I(INS_IJMPNE)
+// jmp pc+[r1]
+I(INS_JMP)
+// call [func], shift, rix
+I(INS_CALL)
+// ret [r1]
+I(INS_RET)
+// print [r1] for debug
+I(INS_IPRINT)
+I(INS_TNILPRINT)
+// exit
+I(INS_EXIT)
+

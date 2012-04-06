@@ -122,7 +122,7 @@ public:
 	int ci;
 	int sp;
 	void addInst(int inst) {
-		printf("%03d: %s\n", ci, getInstName(inst));
+		//printf("%03d: %s\n", ci, getInstName(inst));
 		code[ci++].ptr = jmptable[inst];
 	}
 	void addInt(int n) {
