@@ -70,6 +70,8 @@ enum {
 	INS_IMUL,
 	INS_IDIV,
 	INS_IMOD,
+	// [r1] *= -1
+	INS_INEG,
 	// [r1] < [r2] then jmp pc+[r3]
 	INS_IJMPLT,
 	INS_IJMPLE,

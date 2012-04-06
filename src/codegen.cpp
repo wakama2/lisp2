@@ -38,6 +38,34 @@ static void genAdd(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	cb->sp--;
 }
 
+static void genSub(Context *ctx, Cons *cons, CodeBuilder *cb) {
+	if(cons == NULL) return;
+	genIntValue(ctx, cons, cb);
+	cons = cons->cdr;
+	if(cons == NULL) {
+		cb->addInst(INS_INEG);
+		cb->addInt(cb->sp);
+		return;
+	}
+	int sp = cb->sp++;
+	for(; cons != NULL; cons = cons->cdr) {
+		genIntValue(ctx, cons, cb);
+		cb->addInst(INS_ISUB);
+		cb->addInt(sp);
+		cb->addInt(sp+1);
+	}
+	cb->sp--;
+	
+}
+
+static void genLt(Context *ctx, Cons *cons, CodeBuilder *cb) {
+	genIntValue(ctx, cons, cb);
+	cb->sp++;
+	genIntValue(ctx, cons->cdr, cb);
+	cb->sp--;
+	cb->addInst(INS_IJMPGE);
+}
+
 static Func *addfunc(Context *ctx, const char *name, Cons *args) {
 	Func *f = new Func();
 	f->name = name;
@@ -84,6 +112,8 @@ void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	} else if(cons->type == CONS_STR) {
 		if(strcmp(cons->str, "+") == 0) {
 			genAdd(ctx, cons->cdr, cb);		
+		} else if(strcmp(cons->str, "-") == 0) {
+			genSub(ctx, cons->cdr, cb);		
 		} else if(strcmp(cons->str, "defun") == 0) {
 			genDefun(ctx, cons->cdr, cb);
 		} else {

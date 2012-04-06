@@ -9,6 +9,7 @@ void vmrun(WorkerThread *wth) {
 		jmptable[INS_IMUL] = &&L_IMUL;
 		jmptable[INS_IDIV] = &&L_IDIV;
 		jmptable[INS_IMOD] = &&L_IMOD;
+		jmptable[INS_INEG] = &&L_INEG;
 		jmptable[INS_IJMPLT] = &&L_IJMPLT;
 		jmptable[INS_IJMPLE] = &&L_IJMPLE;
 		jmptable[INS_IJMPGT] = &&L_IJMPGT;
@@ -56,6 +57,10 @@ L_IDIV:
 L_IMOD:
 	sfp[pc[1].i] %= sfp[pc[2].i];
 	goto *((pc += 3)->ptr);
+
+L_INEG:
+	sfp[pc[1].i] = -sfp[pc[1].i];
+	goto *((pc += 2)->ptr);
 
 L_IJMPLT:
 	pc += (sfp[pc[1].i] < sfp[pc[2].i]) ? pc[3].i : 4;
