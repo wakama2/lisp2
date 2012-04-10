@@ -85,25 +85,20 @@ L_INS_CALL:
 	pc = pc[1].func->code;
 	goto *(pc->ptr);
 
-L_INS_SPAWN:
-	if(ctx->threadCount < TH_MAX) {
-		printf("%d\n", ctx->threadCount);
+L_INS_SPAWN: {
 		Func *func = pc[1].func;
 		WorkerThread *w = newWorkerThread(ctx, func->code, func->argc, sp + pc[2].i);
-		sp[pc[3].i].future = &w->future;
-	} else {
-		//fp->sp = sp;
-		//fp->pc = pc + 4;
-		//fp++;
-		//sp += pc[2].i;
-		//pc = pc[1].func->code;
-		wth->sp = sp + pc[2].i;
-		wth->pc = pc[1].func->code;
-		vmrun(ctx, wth);
-		Future *f = &wth->future;
-		f->getResult = ConstFuture_getResult;
-		f->v = wth->sp[0];
-		sp[pc[3].i].future = f;
+		if(w != NULL) {
+			sp[pc[3].i].future = &w->future;
+		} else {
+			wth->sp = sp + pc[2].i;
+			wth->pc = func->code;
+			vmrun(ctx, wth);
+			Future *f = &wth->future;
+			f->getResult = ConstFuture_getResult;
+			f->v = wth->sp[0];
+			sp[pc[3].i].future = f;
+		}
 	}
 	goto *((pc += 4)->ptr);
 

@@ -45,20 +45,27 @@ struct Future {
 
 struct WorkerThread {
 	pthread_t pth;
+	Context *ctx;
+	// exec
 	Code *pc;
 	Value *sp;
 	Frame *fp;
-	Context *ctx;
+	WorkerThread *parent;
+	WorkerThread *next;
+	// private
 	Future future;
-	Frame frame[256];
-	Value stack[1024];
+	Frame frame[64];
+	Value stack[256];
 };
 
 struct Context {
 	void *jmptable[256];
 	Func *funcs[256];
 	int funcLen;
+	WorkerThread wth[TH_MAX];
+	WorkerThread *freeThread;
 	int threadCount;
+	pthread_mutex_t lock;
 };
 
 void vmrun(Context *ctx, WorkerThread *wth);

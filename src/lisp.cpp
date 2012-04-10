@@ -42,13 +42,32 @@ static void *WorkerThread_Start(void *ptr) {
 	return NULL;
 }
 
+static int getThreadId(WorkerThread *wth) {
+	return (wth - wth->ctx->wth);
+}
+
 WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
-	ATOMIC_ADD(&ctx->threadCount, 1);
-	WorkerThread *wth = new WorkerThread();
+	WorkerThread *wth = NULL;
+
+	pthread_mutex_lock(&ctx->lock);
+	//ATOMIC_ADD(&ctx->threadCount, 1);
+	ctx->threadCount++;
+
+	wth = ctx->freeThread;
+	if(wth != NULL) {
+		ctx->freeThread = wth->next;
+	}
+	pthread_mutex_unlock(&ctx->lock);
+	if(wth == NULL) {
+		//abort();
+		return NULL;
+	}
+	if(argc == 1) printf("[%d]: start %d\n", getThreadId(wth), argv[0].i);
+
+	//WorkerThread *wth = new WorkerThread();
 	wth->pc = pc;
 	wth->fp = wth->frame;
 	wth->sp = wth->stack;
-	wth->ctx = ctx;
 	if(argc != 0) {
 		memcpy(wth->stack, argv, sizeof(argv[0]) * argc);
 	}
@@ -60,12 +79,19 @@ WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
 }
 
 void joinWorkerThread(WorkerThread *wth) {
+	printf("[%d]: join\n", getThreadId(wth));
 	pthread_join(wth->pth, NULL);
 }
 
 void deleteWorkerThread(WorkerThread *wth) {
-	ATOMIC_SUB(&wth->ctx->threadCount, 1);
-	delete wth;
+	//delete wth;
+	Context *ctx = wth->ctx;
+	pthread_mutex_lock(&ctx->lock);
+	ctx->threadCount--;
+	wth->next = ctx->freeThread;
+	ctx->freeThread = wth;
+	printf("[%d]: exit\n", getThreadId(wth));
+	pthread_mutex_unlock(&ctx->lock);
 }
 
 //------------------------------------------------------
@@ -131,7 +157,15 @@ static Context *newContext() {
 	Context *ctx = new Context();
 	ctx->funcLen = 0;
 	ctx->threadCount = 0;
-	vmrun(ctx, NULL);
+	ctx->freeThread = &ctx->wth[0];
+	for(int i=0; i<TH_MAX; i++) {
+		ctx->wth[i].ctx = ctx;
+		ctx->wth[i].next = ctx->wth + i + 1;
+		ctx->wth[i].parent = NULL;
+	}
+	ctx->wth[TH_MAX-1].next = NULL;
+	pthread_mutex_init(&ctx->lock, NULL);
+	vmrun(ctx, NULL); /* init jmptable */
 	return ctx;
 }
 
