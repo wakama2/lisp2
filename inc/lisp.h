@@ -69,7 +69,7 @@ struct Context {
 };
 
 void vmrun(Context *ctx, WorkerThread *wth);
-WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv);
+WorkerThread *newWorkerThread(Context *ctx, WorkerThread *wth, Code *pc, int argc, Value *argv);
 void joinWorkerThread(WorkerThread *wth);
 void deleteWorkerThread(WorkerThread *wth);
 	
@@ -139,6 +139,13 @@ enum {
 
 const char *getInstName(int inst);
 
+enum {
+	TYPE_INT,
+	TYPE_TNIL,
+	TYPE_STR,
+	TYPE_FUTURE,
+};
+
 //------------------------------------------------------
 // code generator
 class CodeBuilder {
@@ -148,12 +155,13 @@ public:
 		func = _func;
 		sp = func != NULL ? func->argc : 0;
 		ci = 0;
+		for(int i=0; i<256; i++) stype[i] = -1;
+		for(int i=0; i<sp; i++) stype[i] = TYPE_INT;
 	}
 	Context *ctx;
-	Func *func;
 	Code code[256];
 	int ci;
-	int sp;
+	int stype[256];
 	void addInst(int inst) {
 		printf("%03d: %s\n", ci, getInstName(inst));
 		code[ci++].ptr = ctx->jmptable[inst];
@@ -164,20 +172,27 @@ public:
 	void addFunc(Func *func) {
 		code[ci++].func = func;
 	}
+	Func *func;
+	int sp;
 	void createIConst(int r, int i) {
 		addInst(INS_ICONST);
 		addInt(r);
 		addInt(i);
+		stype[r] = TYPE_INT;
 	}
 	void createMov(int r, int n) {
 		addInst(INS_MOV);
 		addInt(r);
 		addInt(n);
+		stype[r] = stype[n];
 	}
 	void createOp(int inst, int r, int a) {
 		addInst(inst);
 		addInt(r);
 		addInt(a);
+		assert(stype[r] == TYPE_INT);
+		assert(stype[a] == TYPE_INT);
+		stype[r] = TYPE_INT;
 	}
 	// return label
 	int createCondOp(int inst, int a, int b) {
@@ -186,6 +201,8 @@ public:
 		addInt(0);
 		addInt(a);
 		addInt(b);
+		assert(stype[a] == TYPE_INT);
+		assert(stype[b] == TYPE_INT);
 		return lb;
 	}
 	int createJmp() {
@@ -202,29 +219,34 @@ public:
 	void createINeg(int r) {
 		addInst(INS_INEG);
 		addInt(r);
+		assert(stype[r] == TYPE_INT);
 	}
 	void createCall(Func *func, int shift, int rix) {
 		addInst(INS_CALL);
 		addFunc(func);
 		addInt(shift);
 		addInt(rix);
+		stype[rix] = TYPE_INT;
 	}
 	void createSpawn(Func *func, int shift, int rix) {
 		addInst(INS_SPAWN);
 		addFunc(func);
 		addInt(shift);
 		addInt(rix);
+		stype[rix] = TYPE_FUTURE;
 	}
 	void createJoin(int n) {
 		addInst(INS_JOIN);
 		addInt(n);
+		assert(stype[n] == TYPE_FUTURE);
+		stype[n] = TYPE_INT;
 	}
 	void createRet() { 
-		if(func != NULL && func->argc != 0) { createMov(0, 1); }
+		if(func != NULL && func->argc != 0) { createMov(0, func->argc); }
 		addInst(INS_RET);
 	}
 	void createExit() {
-		if(func != NULL && func->argc != 0) { createMov(0, 1); }
+		if(func != NULL && func->argc != 0) { createMov(0, func->argc); }
 		addInst(INS_EXIT);
 	}
 	void setLabel(int n) {

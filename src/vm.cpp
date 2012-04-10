@@ -87,7 +87,7 @@ L_INS_CALL:
 
 L_INS_SPAWN: {
 		Func *func = pc[1].func;
-		WorkerThread *w = newWorkerThread(ctx, func->code, func->argc, sp + pc[2].i);
+		WorkerThread *w = newWorkerThread(ctx, wth, func->code, func->argc, sp + pc[2].i);
 		if(w != NULL) {
 			sp[pc[3].i].future = &w->future;
 		} else {

@@ -43,10 +43,10 @@ static void *WorkerThread_Start(void *ptr) {
 }
 
 static int getThreadId(WorkerThread *wth) {
-	return (wth - wth->ctx->wth);
+	return wth == NULL ? -1 : (wth - wth->ctx->wth);
 }
 
-WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
+WorkerThread *newWorkerThread(Context *ctx, WorkerThread *parent, Code *pc, int argc, Value *argv) {
 	WorkerThread *wth = NULL;
 
 	pthread_mutex_lock(&ctx->lock);
@@ -62,7 +62,8 @@ WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
 		//abort();
 		return NULL;
 	}
-	if(argc == 1) printf("[%d]: start %d\n", getThreadId(wth), argv[0].i);
+	wth->parent = parent;
+	if(argc == 1) printf("[%d]: start %d p=%d\n", getThreadId(wth), argv[0].i, getThreadId(wth->parent));
 
 	//WorkerThread *wth = new WorkerThread();
 	wth->pc = pc;
@@ -88,9 +89,9 @@ void deleteWorkerThread(WorkerThread *wth) {
 	Context *ctx = wth->ctx;
 	pthread_mutex_lock(&ctx->lock);
 	ctx->threadCount--;
-	wth->next = ctx->freeThread;
-	ctx->freeThread = wth;
-	printf("[%d]: exit\n", getThreadId(wth));
+	//wth->next = ctx->freeThread;
+	//ctx->freeThread = wth;
+	//printf("[%d]: exit\n", getThreadId(wth));
 	pthread_mutex_unlock(&ctx->lock);
 }
 
@@ -105,11 +106,12 @@ static void runCons(Context *ctx, Cons *cons) {
 	}
 	CodeBuilder *cb = new CodeBuilder(ctx, NULL);
 	codegen(ctx, cons, cb);
+	if(cb->stype[0] == TYPE_FUTURE) cb->createJoin(0);
 	cb->createExit();
 	//joinWorkerThread(wth);
 	//printf("%d\n", wth->stack[0]);
 	//deleteWorkerThread(wth);
-	WorkerThread *wth = newWorkerThread(ctx, cb->code, 0, NULL);
+	WorkerThread *wth = newWorkerThread(ctx, NULL, cb->code, 0, NULL);
 	Future *f = &wth->future;
 	printf("%d\n", f->getResult(f));
 	delete cb;
@@ -158,13 +160,13 @@ static Context *newContext() {
 	ctx->funcLen = 0;
 	ctx->threadCount = 0;
 	ctx->freeThread = &ctx->wth[0];
+	pthread_mutex_init(&ctx->lock, NULL);
 	for(int i=0; i<TH_MAX; i++) {
 		ctx->wth[i].ctx = ctx;
 		ctx->wth[i].next = ctx->wth + i + 1;
 		ctx->wth[i].parent = NULL;
 	}
 	ctx->wth[TH_MAX-1].next = NULL;
-	pthread_mutex_init(&ctx->lock, NULL);
 	vmrun(ctx, NULL); /* init jmptable */
 	return ctx;
 }

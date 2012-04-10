@@ -34,7 +34,10 @@ static void genAdd(Context *ctx, Func *func/*unused*/, Cons *cons, CodeBuilder *
 	cons = cons->cdr;
 	int sp = cb->sp++;
 	for(; cons != NULL; cons = cons->cdr) {
+		// TODO
+		if(cb->stype[sp] == TYPE_FUTURE) cb->createJoin(sp);
 		genIntValue(ctx, cons, cb);
+		if(cb->stype[sp + 1] == TYPE_FUTURE) cb->createJoin(sp + 1);
 		cb->createIAdd(sp, sp+1);
 	}
 	cb->sp--;
@@ -51,10 +54,11 @@ static void genSub(Context *ctx, Func *func/*unused*/, Cons *cons, CodeBuilder *
 	int sp = cb->sp++;
 	for(; cons != NULL; cons = cons->cdr) {
 		genIntValue(ctx, cons, cb);
+		if(cb->stype[sp] == TYPE_FUTURE) cb->createJoin(sp);
+		if(cb->stype[sp + 1] == TYPE_FUTURE) cb->createJoin(sp + 1);
 		cb->createISub(sp, sp + 1);
 	}
 	cb->sp--;
-	
 }
 
 static Func *addfunc(Context *ctx, const char *name, Cons *args) {
@@ -126,14 +130,12 @@ static void genCall(Context *ctx, Func *func, Cons *cons, CodeBuilder *cb) {
 		cb->sp++;
 	}
 	cb->sp = sp;
-	//cb->createCall(func, sp, sp);
 	cb->createSpawn(func, sp, sp);
-	cb->createJoin(sp);
 }
 
 void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
 	if(cons->type == CONS_CAR) {
-		return codegen(ctx, cons->car, cb);
+		codegen(ctx, cons->car, cb);
 	} else if(cons->type == CONS_STR) {
 		if(strcmp(cons->str, "+") == 0) {
 			genAdd(ctx, NULL, cons->cdr, cb);		
