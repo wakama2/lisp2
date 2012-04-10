@@ -1,8 +1,8 @@
 #include "lisp.h"
 
-void vmrun(WorkerThread *wth) {
+void vmrun(Context *ctx, WorkerThread *wth) {
 	if(wth == NULL) {
-#define I(a) jmptable[a] = &&L_##a;
+#define I(a) ctx->jmptable[a] = &&L_##a;
 #include "inst"
 #undef I
 		return;

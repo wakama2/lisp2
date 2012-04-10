@@ -29,15 +29,12 @@ struct WorkerThread {
 };
 
 struct Context {
+	void *jmptable[256];
 	Func *funcs[256];
 	int funcLen;
-
-	Context() {
-		funcLen = 0;
-	}
 };
 
-void vmrun(WorkerThread *wth);
+void vmrun(Context *ctx, WorkerThread *wth);
 
 //------------------------------------------------------
 // cons
@@ -96,7 +93,6 @@ struct Code {
 		Func *func;
 	};
 };
-extern void *jmptable[256];
 
 enum {
 #define I(a) a,
@@ -110,19 +106,20 @@ const char *getInstName(int inst);
 // code generator
 class CodeBuilder {
 public:
-	CodeBuilder(Func *f = NULL) {
-		func = f;
-		code = new Code[256];
+	CodeBuilder(Context *_ctx, Func *_func) {
+		ctx = _ctx;
+		func = _func;
 		sp = 0;
 		ci = 0;
 	}
+	Context *ctx;
 	Func *func;
-	Code *code;
+	Code code[256];
 	int ci;
 	int sp;
 	void addInst(int inst) {
 		//printf("%03d: %s\n", ci, getInstName(inst));
-		code[ci++].ptr = jmptable[inst];
+		code[ci++].ptr = ctx->jmptable[inst];
 	}
 	void addInt(int n) {
 		code[ci++].i = n;
@@ -180,7 +177,9 @@ public:
 		code[n + 1].i = ci - n;
 	}
 	void accept(Func *func) {
-		func->code = code;
+		Code *c = new Code[ci];
+		memcpy(c, code, sizeof(Code) * ci);
+		func->code = c;
 	}
 };
 

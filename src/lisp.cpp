@@ -2,8 +2,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-void *jmptable[256];
-
+//------------------------------------------------------
 void Cons::print(FILE *fp) {
 	bool b = false;
 	Cons *self = this;
@@ -28,6 +27,7 @@ void Cons::println(FILE *fp) {
 	fprintf(fp, "\n");
 }
 
+//------------------------------------------------------
 static void runCons(Context *ctx, Cons *cons) {
 	if(cons->type == CONS_CAR) {
 		for(; cons != NULL; cons = cons->cdr) {
@@ -36,7 +36,7 @@ static void runCons(Context *ctx, Cons *cons) {
 		}
 		return;
 	}
-	CodeBuilder *cb = new CodeBuilder();
+	CodeBuilder *cb = new CodeBuilder(ctx, NULL);
 	codegen(ctx, cons, cb);
 	cb->addInst(INS_EXIT);
 
@@ -44,14 +44,14 @@ static void runCons(Context *ctx, Cons *cons) {
 	wth->pc = cb->code;
 	wth->fp = wth->frame;
 	wth->sp = wth->stack;
-	vmrun(wth);
+	vmrun(ctx, wth);
 	printf("%d\n", wth->stack[0]);
 	delete wth;
 	delete cb;
 }
 
+//------------------------------------------------------
 #define HISTFILE ".history"
-
 static void interactive(Context *ctx) {
 	read_history(HISTFILE);
 	while(true) {
@@ -87,15 +87,27 @@ static void runFromFile(const char *filename, Context *ctx) {
 	}
 }
 
-int main(int argc, char **argv) {
-	vmrun(NULL);
+//------------------------------------------------------
+static Context *newContext() {
 	Context *ctx = new Context();
+	ctx->funcLen = 0;
+	vmrun(ctx, NULL);
+	return ctx;
+}
+
+static void deleteContext(Context *ctx) {
+	delete ctx;
+}
+
+//------------------------------------------------------
+int main(int argc, char **argv) {
+	Context *ctx = newContext();
 	if(argc >= 2) {
 		runFromFile(argv[1], ctx);
 	} else {
 		interactive(ctx);
 	}
-	delete ctx;
+	deleteContext(ctx);
 	return 0;
 }
 

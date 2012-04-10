@@ -111,7 +111,7 @@ static void genDefun(Context *ctx, Func * /*unused*/, Cons *cons, CodeBuilder *)
 	Cons *args = cons->car;
 	cons = cons->cdr;
 	Func *func = addfunc(ctx, name, args);
-	CodeBuilder *cb = new CodeBuilder(func);
+	CodeBuilder *cb = new CodeBuilder(ctx, func);
 	codegen(ctx, cons, cb);
 	cb->createRet();
 	cb->accept(func);
