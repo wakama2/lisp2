@@ -202,7 +202,7 @@ public:
 	}
 	void createJoin(int n) {
 		addInst(INS_JOIN);
-		addInst(n);
+		addInt(n);
 	}
 	void createRet() { 
 		if(func != NULL && func->argc != 0) { createMov(0, 1); }
