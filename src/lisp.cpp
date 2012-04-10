@@ -42,6 +42,8 @@ static void runCons(Context *ctx, Cons *cons) {
 
 	WorkerThread *wth = new WorkerThread();
 	wth->pc = cb->code;
+	wth->fp = wth->frame;
+	wth->sp = wth->stack;
 	vmrun(wth);
 	printf("%d\n", wth->stack[0]);
 	delete wth;

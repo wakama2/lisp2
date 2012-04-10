@@ -14,7 +14,7 @@ struct Func;
 // context
 
 struct Frame {
-	int *sfp;
+	int *sp;
 	Code *pc;
 	int rix;
 };
@@ -22,6 +22,8 @@ struct Frame {
 struct WorkerThread {
 	pthread_t pth;
 	Code *pc;
+	int *sp;
+	Frame *fp;
 	Frame frame[256];
 	int stack[1024];
 };
