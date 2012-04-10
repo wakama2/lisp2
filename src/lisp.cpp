@@ -28,6 +28,31 @@ void Cons::println(FILE *fp) {
 }
 
 //------------------------------------------------------
+static void *WorkerThread_Start(void *ptr) {
+	WorkerThread *wth = (WorkerThread *)ptr;
+	vmrun(wth->ctx, wth);
+	return NULL;
+}
+
+WorkerThread *newWorkerThread(Context *ctx, Code *pc) {
+	WorkerThread *wth = new WorkerThread();
+	wth->pc = pc;
+	wth->fp = wth->frame;
+	wth->sp = wth->stack;
+	wth->ctx = ctx;
+	pthread_create(&wth->pth, NULL, WorkerThread_Start, wth);
+	return wth;
+}
+
+void joinWorkerThread(WorkerThread *wth) {
+	pthread_join(wth->pth, NULL);
+}
+
+void deleteWorkerThread(WorkerThread *wth) {
+	delete wth;
+}
+
+//------------------------------------------------------
 static void runCons(Context *ctx, Cons *cons) {
 	if(cons->type == CONS_CAR) {
 		for(; cons != NULL; cons = cons->cdr) {
@@ -40,19 +65,16 @@ static void runCons(Context *ctx, Cons *cons) {
 	codegen(ctx, cons, cb);
 	cb->addInst(INS_EXIT);
 
-	WorkerThread *wth = new WorkerThread();
-	wth->pc = cb->code;
-	wth->fp = wth->frame;
-	wth->sp = wth->stack;
-	vmrun(ctx, wth);
+	WorkerThread *wth = newWorkerThread(ctx, cb->code);
+	joinWorkerThread(wth);
 	printf("%d\n", wth->stack[0]);
-	delete wth;
+	deleteWorkerThread(wth);
 	delete cb;
 }
 
 //------------------------------------------------------
 #define HISTFILE ".history"
-static void interactive(Context *ctx) {
+static void runInteractive(Context *ctx) {
 	read_history(HISTFILE);
 	while(true) {
 		char *in = readline(">>");
@@ -67,7 +89,7 @@ static void interactive(Context *ctx) {
 	}
 }
 
-static void runFromFile(const char *filename, Context *ctx) {
+static void runFromFile(Context *ctx, const char *filename) {
 	FILE *fp = fopen(filename, "r");
 	if(fp == NULL) return;
 	char is[256];
@@ -103,9 +125,9 @@ static void deleteContext(Context *ctx) {
 int main(int argc, char **argv) {
 	Context *ctx = newContext();
 	if(argc >= 2) {
-		runFromFile(argv[1], ctx);
+		runFromFile(ctx, argv[1]);
 	} else {
-		interactive(ctx);
+		runInteractive(ctx);
 	}
 	deleteContext(ctx);
 	return 0;

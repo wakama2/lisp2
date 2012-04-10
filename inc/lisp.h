@@ -9,6 +9,7 @@
 
 struct Code;
 struct Func;
+struct Context;
 
 //------------------------------------------------------
 // context
@@ -24,6 +25,7 @@ struct WorkerThread {
 	Code *pc;
 	int *sp;
 	Frame *fp;
+	Context *ctx;
 	Frame frame[256];
 	int stack[1024];
 };
