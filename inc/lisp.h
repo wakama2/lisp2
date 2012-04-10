@@ -55,7 +55,7 @@ struct Context {
 };
 
 void vmrun(Context *ctx, WorkerThread *wth);
-WorkerThread *newWorkerThread(Context *ctx, Code *pc);
+WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv);
 void joinWorkerThread(WorkerThread *wth);
 void deleteWorkerThread(WorkerThread *wth);
 	

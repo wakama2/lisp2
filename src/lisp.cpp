@@ -34,12 +34,15 @@ static void *WorkerThread_Start(void *ptr) {
 	return NULL;
 }
 
-WorkerThread *newWorkerThread(Context *ctx, Code *pc) {
+WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
 	WorkerThread *wth = new WorkerThread();
 	wth->pc = pc;
 	wth->fp = wth->frame;
-	wth->sp = wth->stack;
+	wth->sp = wth->stack + argc;
 	wth->ctx = ctx;
+	if(argc != 0) {
+		memcpy(wth->stack, argv, sizeof(Value) * argc);
+	}
 	pthread_create(&wth->pth, NULL, WorkerThread_Start, wth);
 	return wth;
 }
@@ -62,7 +65,7 @@ static int eval2_getResult(Future *f) {
 }
 
 static Future *eval2(Context *ctx, Code *c) {
-	WorkerThread *wth = newWorkerThread(ctx, c);
+	WorkerThread *wth = newWorkerThread(ctx, c, 0, NULL);
 	Future *future = &wth->future;
 	future->wth = wth;
 	future->getResult = eval2_getResult;
