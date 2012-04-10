@@ -10,24 +10,42 @@
 struct Code;
 struct Func;
 struct Context;
+struct Value;
+struct Future;
+struct WorkerThread;
 
 //------------------------------------------------------
 // context
 
 struct Frame {
-	int *sp;
+	Value *sp;
 	Code *pc;
 	int rix;
+};
+
+struct Value {
+	union {
+		int i;
+		double d;
+		const char *str;
+		Future *future;
+	};
+};
+
+struct Future {
+	WorkerThread *wth;
+	int (*getResult)(Future *);
 };
 
 struct WorkerThread {
 	pthread_t pth;
 	Code *pc;
-	int *sp;
+	Value *sp;
 	Frame *fp;
 	Context *ctx;
+	Future future;
 	Frame frame[256];
-	int stack[1024];
+	Value stack[1024];
 };
 
 struct Context {
@@ -37,7 +55,10 @@ struct Context {
 };
 
 void vmrun(Context *ctx, WorkerThread *wth);
-
+WorkerThread *newWorkerThread(Context *ctx, Code *pc);
+void joinWorkerThread(WorkerThread *wth);
+void deleteWorkerThread(WorkerThread *wth);
+	
 //------------------------------------------------------
 // cons
 
@@ -103,12 +124,6 @@ enum {
 };
 
 const char *getInstName(int inst);
-
-//------------------------------------------------------
-struct Future {
-	WorkerThread *wth;
-	int (*getResult)(Future *);
-};
 
 //------------------------------------------------------
 // code generator

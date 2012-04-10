@@ -56,16 +56,17 @@ void deleteWorkerThread(WorkerThread *wth) {
 static int eval2_getResult(Future *f) {
 	WorkerThread *wth = f->wth;
 	joinWorkerThread(wth);
-	int res = wth->stack[0];
+	int res = wth->stack[0].i;
 	deleteWorkerThread(wth);
-	f->wth = NULL;
 	return res;
 }
 
-static void eval2(Context *ctx, Code *c, Future *future) {
+static Future *eval2(Context *ctx, Code *c) {
 	WorkerThread *wth = newWorkerThread(ctx, c);
+	Future *future = &wth->future;
 	future->wth = wth;
 	future->getResult = eval2_getResult;
+	return future;
 }
 
 //------------------------------------------------------
@@ -85,9 +86,8 @@ static void runCons(Context *ctx, Cons *cons) {
 	//joinWorkerThread(wth);
 	//printf("%d\n", wth->stack[0]);
 	//deleteWorkerThread(wth);
-	Future f;
-	eval2(ctx, cb->code, &f);
-	printf("%d\n", f.getResult(&f));
+	Future *f = eval2(ctx, cb->code);
+	printf("%d\n", f->getResult(f));
 	delete cb;
 }
 
