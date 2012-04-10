@@ -14,6 +14,10 @@ struct Value;
 struct Future;
 struct WorkerThread;
 
+#define TH_MAX 9
+#define ATOMIC_ADD(p, v) __sync_fetch_and_add(p, v)
+#define ATOMIC_SUB(p, v) __sync_fetch_and_sub(p, v)
+
 //------------------------------------------------------
 // context
 
@@ -32,7 +36,10 @@ struct Value {
 };
 
 struct Future {
-	WorkerThread *wth;
+	union {
+		WorkerThread *wth;
+		Value v;
+	};
 	int (*getResult)(Future *);
 };
 
@@ -51,6 +58,7 @@ struct Context {
 	void *jmptable[256];
 	Func *funcs[256];
 	int funcLen;
+	int threadCount;
 };
 
 void vmrun(Context *ctx, WorkerThread *wth);
@@ -140,7 +148,7 @@ public:
 	int ci;
 	int sp;
 	void addInst(int inst) {
-		//printf("%03d: %s\n", ci, getInstName(inst));
+		printf("%03d: %s\n", ci, getInstName(inst));
 		code[ci++].ptr = ctx->jmptable[inst];
 	}
 	void addInt(int n) {

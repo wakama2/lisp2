@@ -43,6 +43,7 @@ static void *WorkerThread_Start(void *ptr) {
 }
 
 WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
+	ATOMIC_ADD(&ctx->threadCount, 1);
 	WorkerThread *wth = new WorkerThread();
 	wth->pc = pc;
 	wth->fp = wth->frame;
@@ -63,6 +64,7 @@ void joinWorkerThread(WorkerThread *wth) {
 }
 
 void deleteWorkerThread(WorkerThread *wth) {
+	ATOMIC_SUB(&wth->ctx->threadCount, 1);
 	delete wth;
 }
 
@@ -128,6 +130,7 @@ static void runFromFile(Context *ctx, const char *filename) {
 static Context *newContext() {
 	Context *ctx = new Context();
 	ctx->funcLen = 0;
+	ctx->threadCount = 0;
 	vmrun(ctx, NULL);
 	return ctx;
 }
