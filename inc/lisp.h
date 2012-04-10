@@ -141,7 +141,7 @@ public:
 	int ci;
 	int sp;
 	void addInst(int inst) {
-		//printf("%03d: %s\n", ci, getInstName(inst));
+		printf("%03d: %s\n", ci, getInstName(inst));
 		code[ci++].ptr = ctx->jmptable[inst];
 	}
 	void addInt(int n) {
@@ -195,7 +195,18 @@ public:
 		addInt(shift);
 		addInt(rix);
 	}
+	void createSpawn(Func *func, int shift, int rix) {
+		addInst(INS_SPAWN);
+		addFunc(func);
+		addInt(shift);
+		addInt(rix);
+	}
+	void createJoin(int n) {
+		addInst(INS_JOIN);
+		addInst(n);
+	}
 	void createRet() { addInst(INS_RET); }
+	void createExit() { addInst(INS_EXIT); }
 	void setLabel(int n) {
 		code[n + 1].i = ci - n;
 	}

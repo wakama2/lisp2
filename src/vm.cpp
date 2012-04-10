@@ -1,13 +1,5 @@
 #include "lisp.h"
 
-static int eval2_getResult(Future *f) {
-	WorkerThread *wth = f->wth;
-	joinWorkerThread(wth);
-	int res = wth->stack[0].i;
-	deleteWorkerThread(wth);
-	return res;
-}
-
 void vmrun(Context *ctx, WorkerThread *wth) {
 	if(wth == NULL) {
 #define I(a) ctx->jmptable[a] = &&L_##a;
@@ -94,15 +86,16 @@ L_INS_SPAWN:
 	{
 		Func *func = pc[1].func;
 		WorkerThread *w = newWorkerThread(ctx, func->code, func->argc, sp + pc[2].i);
-		Future *f = &w->future;
-		f->wth = w;
-		f->getResult = eval2_getResult;
-		sp[pc[3].i].future = f;
+		sp[pc[3].i].future = &w->future;
 	}
 	goto *((pc += 4)->ptr);
 
 L_INS_JOIN:
-	sp[pc[1].i].i = sp[pc[1].i].future->getResult(sp[pc[1].i].future);
+	{
+		int n = pc[1].i;
+		Future *f = sp[n].future;
+		sp[n].i = f->getResult(f);
+	}
 	goto *((pc += 2)->ptr);
 
 L_INS_RET:

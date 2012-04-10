@@ -114,6 +114,7 @@ static void genDefun(Context *ctx, Func * /*unused*/, Cons *cons, CodeBuilder *)
 	CodeBuilder *cb = new CodeBuilder(ctx, func);
 	codegen(ctx, cons, cb);
 	cb->createRet();
+	//cb->createExit();
 	cb->accept(func);
 	delete cb;
 }
@@ -126,6 +127,8 @@ static void genCall(Context *ctx, Func *func, Cons *cons, CodeBuilder *cb) {
 	}
 	cb->createCall(func, cb->sp, sp);
 	cb->sp = sp;
+	//cb->createSpawn(func, sp, sp);
+	//cb->createJoin(sp);
 }
 
 void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {

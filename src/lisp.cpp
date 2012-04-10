@@ -28,6 +28,14 @@ void Cons::println(FILE *fp) {
 }
 
 //------------------------------------------------------
+static int eval2_getResult(Future *f) {
+	WorkerThread *wth = f->wth;
+	joinWorkerThread(wth);
+	int res = wth->stack[0].i;
+	deleteWorkerThread(wth);
+	return res;
+}
+
 static void *WorkerThread_Start(void *ptr) {
 	WorkerThread *wth = (WorkerThread *)ptr;
 	vmrun(wth->ctx, wth);
@@ -41,8 +49,11 @@ WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
 	wth->sp = wth->stack + argc;
 	wth->ctx = ctx;
 	if(argc != 0) {
-		memcpy(wth->stack, argv, sizeof(Value) * argc);
+		memcpy(wth->stack, argv, sizeof(argv[0]) * argc);
 	}
+	Future *future = &wth->future;
+	future->wth = wth;
+	future->getResult = eval2_getResult;
 	pthread_create(&wth->pth, NULL, WorkerThread_Start, wth);
 	return wth;
 }
@@ -56,23 +67,6 @@ void deleteWorkerThread(WorkerThread *wth) {
 }
 
 //------------------------------------------------------
-static int eval2_getResult(Future *f) {
-	WorkerThread *wth = f->wth;
-	joinWorkerThread(wth);
-	int res = wth->stack[0].i;
-	deleteWorkerThread(wth);
-	return res;
-}
-
-static Future *eval2(Context *ctx, Code *c) {
-	WorkerThread *wth = newWorkerThread(ctx, c, 0, NULL);
-	Future *future = &wth->future;
-	future->wth = wth;
-	future->getResult = eval2_getResult;
-	return future;
-}
-
-//------------------------------------------------------
 static void runCons(Context *ctx, Cons *cons) {
 	if(cons->type == CONS_CAR) {
 		for(; cons != NULL; cons = cons->cdr) {
@@ -83,13 +77,12 @@ static void runCons(Context *ctx, Cons *cons) {
 	}
 	CodeBuilder *cb = new CodeBuilder(ctx, NULL);
 	codegen(ctx, cons, cb);
-	cb->addInst(INS_EXIT);
-
-	//WorkerThread *wth = newWorkerThread(ctx, cb->code);
+	cb->createExit();
 	//joinWorkerThread(wth);
 	//printf("%d\n", wth->stack[0]);
 	//deleteWorkerThread(wth);
-	Future *f = eval2(ctx, cb->code);
+	WorkerThread *wth = newWorkerThread(ctx, cb->code, 0, NULL);
+	Future *f = &wth->future;
 	printf("%d\n", f->getResult(f));
 	delete cb;
 }
