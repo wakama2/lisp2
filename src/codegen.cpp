@@ -16,7 +16,7 @@ static void genIntValue(Context *ctx, Cons *cons, CodeBuilder *cb) {
 		Func *func = cb->func;
 		for(int i=0; i<func->argc; i++) {
 			if(strcmp(cons->str, func->args[i]) == 0) {
-				cb->createMov(cb->sp, i - func->argc);
+				cb->createMov(cb->sp, i);
 				break;
 			}
 		}
@@ -125,8 +125,8 @@ static void genCall(Context *ctx, Func *func, Cons *cons, CodeBuilder *cb) {
 		genIntValue(ctx, cons, cb);
 		cb->sp++;
 	}
-	cb->createCall(func, cb->sp, sp);
 	cb->sp = sp;
+	cb->createCall(func, sp, sp);
 	//cb->createSpawn(func, sp, sp);
 	//cb->createJoin(sp);
 }

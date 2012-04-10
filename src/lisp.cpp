@@ -46,7 +46,7 @@ WorkerThread *newWorkerThread(Context *ctx, Code *pc, int argc, Value *argv) {
 	WorkerThread *wth = new WorkerThread();
 	wth->pc = pc;
 	wth->fp = wth->frame;
-	wth->sp = wth->stack + argc;
+	wth->sp = wth->stack;
 	wth->ctx = ctx;
 	if(argc != 0) {
 		memcpy(wth->stack, argv, sizeof(argv[0]) * argc);

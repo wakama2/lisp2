@@ -20,7 +20,6 @@ struct WorkerThread;
 struct Frame {
 	Value *sp;
 	Code *pc;
-	int rix;
 };
 
 struct Value {
@@ -132,7 +131,7 @@ public:
 	CodeBuilder(Context *_ctx, Func *_func) {
 		ctx = _ctx;
 		func = _func;
-		sp = 0;
+		sp = func != NULL ? func->argc : 0;
 		ci = 0;
 	}
 	Context *ctx;
@@ -141,7 +140,7 @@ public:
 	int ci;
 	int sp;
 	void addInst(int inst) {
-		printf("%03d: %s\n", ci, getInstName(inst));
+		//printf("%03d: %s\n", ci, getInstName(inst));
 		code[ci++].ptr = ctx->jmptable[inst];
 	}
 	void addInt(int n) {
@@ -156,7 +155,7 @@ public:
 		addInt(i);
 	}
 	void createMov(int r, int n) {
-		addInst(INS_IMOV);
+		addInst(INS_MOV);
 		addInt(r);
 		addInt(n);
 	}
@@ -205,8 +204,14 @@ public:
 		addInst(INS_JOIN);
 		addInst(n);
 	}
-	void createRet() { addInst(INS_RET); }
-	void createExit() { addInst(INS_EXIT); }
+	void createRet() { 
+		if(func != NULL && func->argc != 0) { createMov(0, 1); }
+		addInst(INS_RET);
+	}
+	void createExit() {
+		if(func != NULL && func->argc != 0) { createMov(0, 1); }
+		addInst(INS_EXIT);
+	}
 	void setLabel(int n) {
 		code[n + 1].i = ci - n;
 	}

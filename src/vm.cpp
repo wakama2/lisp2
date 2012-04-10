@@ -17,8 +17,8 @@ L_INS_ICONST:
 	sp[pc[1].i].i = pc[2].i;
 	goto *((pc += 3)->ptr);
 	
-L_INS_IMOV:
-	sp[pc[1].i].i = sp[pc[2].i].i;
+L_INS_MOV:
+	sp[pc[1].i] = sp[pc[2].i];
 	goto *((pc += 3)->ptr);
 
 L_INS_IADD:
@@ -76,7 +76,6 @@ L_INS_JMP:
 L_INS_CALL:
 	fp->sp = sp;
 	fp->pc = pc + 4;
-	fp->rix = pc[3].i;
 	fp++;
 	sp += pc[2].i;
 	pc = pc[1].func->code;
@@ -99,13 +98,9 @@ L_INS_JOIN:
 	goto *((pc += 2)->ptr);
 
 L_INS_RET:
-	{
-		fp--;
-		Value rval = sp[0];
-		pc = fp->pc;
-		sp = fp->sp;
-		sp[fp->rix] = rval;
-	}
+	fp--;
+	pc = fp->pc;
+	sp = fp->sp;
 	goto *(pc->ptr);
 
 L_INS_IPRINT:

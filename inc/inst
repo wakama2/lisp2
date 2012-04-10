@@ -1,7 +1,7 @@
 // [r1] = v2
 I(INS_ICONST)
 // [r1] = [v2]
-I(INS_IMOV)
+I(INS_MOV)
 // [r1] += [r2]
 I(INS_IADD)
 I(INS_ISUB)
