@@ -105,6 +105,12 @@ enum {
 const char *getInstName(int inst);
 
 //------------------------------------------------------
+struct Future {
+	WorkerThread *wth;
+	int (*getResult)(Future *);
+};
+
+//------------------------------------------------------
 // code generator
 class CodeBuilder {
 public:

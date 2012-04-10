@@ -53,6 +53,22 @@ void deleteWorkerThread(WorkerThread *wth) {
 }
 
 //------------------------------------------------------
+static int eval2_getResult(Future *f) {
+	WorkerThread *wth = f->wth;
+	joinWorkerThread(wth);
+	int res = wth->stack[0];
+	deleteWorkerThread(wth);
+	f->wth = NULL;
+	return res;
+}
+
+static void eval2(Context *ctx, Code *c, Future *future) {
+	WorkerThread *wth = newWorkerThread(ctx, c);
+	future->wth = wth;
+	future->getResult = eval2_getResult;
+}
+
+//------------------------------------------------------
 static void runCons(Context *ctx, Cons *cons) {
 	if(cons->type == CONS_CAR) {
 		for(; cons != NULL; cons = cons->cdr) {
@@ -65,10 +81,13 @@ static void runCons(Context *ctx, Cons *cons) {
 	codegen(ctx, cons, cb);
 	cb->addInst(INS_EXIT);
 
-	WorkerThread *wth = newWorkerThread(ctx, cb->code);
-	joinWorkerThread(wth);
-	printf("%d\n", wth->stack[0]);
-	deleteWorkerThread(wth);
+	//WorkerThread *wth = newWorkerThread(ctx, cb->code);
+	//joinWorkerThread(wth);
+	//printf("%d\n", wth->stack[0]);
+	//deleteWorkerThread(wth);
+	Future f;
+	eval2(ctx, cb->code, &f);
+	printf("%d\n", f.getResult(&f));
 	delete cb;
 }
 
