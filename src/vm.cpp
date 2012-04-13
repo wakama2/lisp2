@@ -1,10 +1,6 @@
 #include "lisp.h"
 
-static int ConstFuture_getResult(Future *f) {
-	return f->v.i;
-}
-
-void vmrun(Context *ctx, WorkerThread *wth) {
+void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	if(wth == NULL) {
 #define I(a) ctx->jmptable[a] = &&L_##a;
 #include "inst"
@@ -12,9 +8,8 @@ void vmrun(Context *ctx, WorkerThread *wth) {
 		return;
 	}
 
-	register Code *pc = wth->pc;
-	register Value *sp = wth->sp;
-	register Frame *fp = wth->fp;
+	register Code *pc  = task->pc;
+	register Value *sp = task->sp;
 	goto *(pc->ptr);
 
 L_INS_ICONST:
@@ -78,42 +73,47 @@ L_INS_JMP:
 	goto *(pc->ptr);
 
 L_INS_CALL:
-	fp->sp = sp;
-	fp->pc = pc + 4;
-	fp++;
+	Value *sp2 = sp;
 	sp += pc[2].i;
+	sp[-2].sp = sp2;
+	sp[-1].pc = pc + 4; // rix
 	pc = pc[1].func->code;
 	goto *(pc->ptr);
 
 L_INS_SPAWN: {
-		Func *func = pc[1].func;
-		WorkerThread *w = newWorkerThread(ctx, wth, func->code, func->argc, sp + pc[2].i);
-		if(w != NULL) {
-			sp[pc[3].i].future = &w->future;
+	Task *task = sche->newTask();
+	sp[pc[3].i].task = task;
+	if(task == NULL) {
+		// INS_CALL
+		goto L_INS_CALL;
+	} else {
+		// spawn
+		sche->enqueue(task);
+		goto *((pc += 4)->ptr);
+	}
+
+L_INS_JOIN:
+	Task *task = sp[pc[1].i].task;
+	if(task != NULL) {
+		if(!task->isEnd()) {
+			return; // TODO
 		} else {
-			wth->sp = sp + pc[2].i;
-			wth->pc = func->code;
-			vmrun(ctx, wth);
-			Future *f = &wth->future;
-			f->getResult = ConstFuture_getResult;
-			f->v = wth->sp[0];
-			sp[pc[3].i].future = f;
+			sp[pc[2].i].i = task->get();
+			sche->deleteTask(sp[1].task);
 		}
 	}
-	goto *((pc += 4)->ptr);
-
-L_INS_JOIN: {
-		int n = pc[1].i;
-		Future *f = sp[n].future;
-		sp[n].i = f->getResult(f);
-	}
-	goto *((pc += 2)->ptr);
+	goto *((pc += 3)->ptr);
 
 L_INS_RET:
-	fp--;
-	pc = fp->pc;
-	sp = fp->sp;
-	goto *(pc->ptr);
+	if(sp != t->stack) {
+		pc = sp[-1].pc;
+		sp = sp[-2].sp;
+		goto *(pc->ptr);
+	} else {
+		t->stat = TASK_END;
+		// call task destructor
+		return;
+	}
 
 L_INS_IPRINT:
 	printf("%d\n", sp[pc[1].i].i);

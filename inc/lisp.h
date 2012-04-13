@@ -12,20 +12,40 @@ struct Func;
 struct Value;
 struct Future;
 struct Cons;
-class WorkerThread;
+struct WorkerThread;
+struct Task;
+class Scheduler;
 class Context;
 class CodeBuilder;
 
-#define TH_MAX 9
+#define WORKER_MAX 8
+#define TASK_MAX   (WORKER_MAX * 4)
 #define ATOMIC_ADD(p, v) __sync_fetch_and_add(p, v)
 #define ATOMIC_SUB(p, v) __sync_fetch_and_sub(p, v)
+#define CAS(a, ov, nv) __sync_bool_compare_and_swap(&a, ov, nv)
 
 //------------------------------------------------------
 // context
 
-struct Frame {
-	Value *sp;
-	Code *pc;
+enum {
+#define I(a) a,
+#include "inst"
+#undef I
+};
+
+enum {
+	TYPE_INT,
+	TYPE_TNIL,
+	TYPE_STR,
+	TYPE_FUTURE,
+};
+
+struct Code {
+	union {
+		int i;
+		void *ptr;
+		Func *func;
+	};
 };
 
 struct Value {
@@ -33,62 +53,87 @@ struct Value {
 		int i;
 		double d;
 		const char *str;
-		Future *future;
+		Task *task;
+		void *pc;
 	};
 };
 
-struct Future {
-	union {
-		WorkerThread *wth;
-		Value v;
-	};
-	int (*getResult)(Future *);
-};
-
-class WorkerThread {
-public:
-	Context *ctx;
-	pthread_t pth;
-	pthread_mutex_t mutex;
-	pthread_cond_t cond;
-	// exec
-	Code *pc;
-	Value *sp;
-	Frame *fp;
-	WorkerThread *parent;
-	WorkerThread *next;
-	// private
-	Future future;
-	Frame frame[64];
-	Value stack[256];
-
-	void lock();
-	void unlock();
+struct Func {
+	const char *name;
+	int argc;
+	const char *args[64];
+	Code *code;
+	Func *next;
 };
 
 class Context {
 private:
-	pthread_mutex_t mutex;
-
+	Func *funclist;
 public:
 	void *jmptable[256];
-	Func *funcs[256];
-	int funcLen;
-	WorkerThread wth[TH_MAX];
-	WorkerThread *freeThread;
-	int threadCount;
 
-	// methods
 	Context();
 	~Context();
-	void lock();
-	void unlock();
+
+	Func *newFunc(const char *name, int argc, const char **argv);
+	void *getDTLabel(int ins); /* direct threaded code label */
+	const char *getInstName(int ins);
 };
 
-void vmrun(Context *ctx, WorkerThread *wth);
-WorkerThread *newWorkerThread(Context *ctx, WorkerThread *wth, Code *pc, int argc, Value *argv);
-void joinWorkerThread(WorkerThread *wth);
-void deleteWorkerThread(WorkerThread *wth);
+//------------------------------------------------------
+// task
+
+#define TASK_STACKSIZE 256
+
+enum TaskStat {
+	TASK_RUN,
+	TASK_END,
+};
+
+struct Task {
+	// task info
+	volatile TaskStat stat;
+	Task *next;
+	// exec info
+	Code  *pc;
+	Value *sp;
+	Value stack[TASK_STACKSIZE];
+};
+
+//------------------------------------------------------
+// scheduler
+
+class Scheduler {
+private:
+	Task *tl_head;
+	Task *tl_tail;
+	pthread_mutex_t tl_lock;
+	pthread_cond_t  tl_cond;
+	Task *taskpool;
+	Task *freetl_head;
+	Task dummyTask;
+
+	WorkerThread *wthpool;
+
+public:
+	Scheduler();
+	void enqueue(Task *task);
+	Task *dequeue();
+	Task *newTask();
+	void delTask();
+};
+
+//------------------------------------------------------
+// worker thread
+
+struct WorkerThread {
+	Context *ctx;
+	Scheduler *sche;
+	pthread_t pth;
+	int id;
+};
+
+void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 
 //------------------------------------------------------
 // cons
@@ -113,15 +158,9 @@ struct Cons {
 	void codegen(CodeBuilder *cb);
 };
 
-struct Func {
-	const char *name;
-	int argc;
-	const char *args[64];
-	Code *code;
-};
-
 //------------------------------------------------------
 // parser
+
 template <class T>
 struct ParseResult {
 	const char *src;
@@ -140,141 +179,43 @@ struct ParseResult {
 ParseResult<Cons *> parseExpr(const char *src);
 
 //------------------------------------------------------
-// code
-struct Code {
-	union {
-		int i;
-		void *ptr;
-		Func *func;
-	};
-};
-
-enum {
-#define I(a) a,
-#include "inst"
-#undef I
-};
-
-const char *getInstName(int inst);
-
-enum {
-	TYPE_INT,
-	TYPE_TNIL,
-	TYPE_STR,
-	TYPE_FUTURE,
-};
-
-//------------------------------------------------------
 // code generator
+
 class CodeBuilder {
-public:
-	CodeBuilder(Context *_ctx, Func *_func) {
-		ctx = _ctx;
-		func = _func;
-		sp = func != NULL ? func->argc : 0;
-		ci = 0;
-		for(int i=0; i<256; i++) stype[i] = -1;
-		for(int i=0; i<sp; i++) stype[i] = TYPE_INT;
-	}
+private:
 	Context *ctx;
+	Func *func;
 	Code code[256];
 	int ci;
 	int stype[256];
-	void addInst(int inst) {
-		printf("%03d: %s\n", ci, getInstName(inst));
-		code[ci++].ptr = ctx->jmptable[inst];
-	}
-	void addInt(int n) {
-		code[ci++].i = n;
-	}
-	void addFunc(Func *func) {
-		code[ci++].func = func;
-	}
-	Func *func;
 	int sp;
-	void createIConst(int r, int i) {
-		addInst(INS_ICONST);
-		addInt(r);
-		addInt(i);
-		stype[r] = TYPE_INT;
-	}
-	void createMov(int r, int n) {
-		addInst(INS_MOV);
-		addInt(r);
-		addInt(n);
-		stype[r] = stype[n];
-	}
-	void createOp(int inst, int r, int a) {
-		addInst(inst);
-		addInt(r);
-		addInt(a);
-		assert(stype[r] == TYPE_INT);
-		assert(stype[a] == TYPE_INT);
-		stype[r] = TYPE_INT;
-	}
+
+public:
+	CodeBuilder(Context *_ctx, Func *_func);
+
+	void addInst(int inst);
+	void addInt(int n);
+	void addFunc(Func *func);
+	void createIConst(int r, int i);
+	void createMov(int r, int n);
+	void createOp(int inst, int r, int a);
 	// return label
-	int createCondOp(int inst, int a, int b) {
-		int lb = ci;
-		addInst(inst);
-		addInt(0);
-		addInt(a);
-		addInt(b);
-		assert(stype[a] == TYPE_INT);
-		assert(stype[b] == TYPE_INT);
-		return lb;
-	}
-	int createJmp() {
-		int lb = ci;
-		addInst(INS_JMP);
-		addInt(0);
-		return lb;
-	}
+	int createCondOp(int inst, int a, int b);
+	int createJmp();
+
 	void createIAdd(int r, int a) { createOp(INS_IADD, r, a); }
 	void createISub(int r, int a) { createOp(INS_ISUB, r, a); }
 	void createIMul(int r, int a) { createOp(INS_IMUL, r, a); }
 	void createIDiv(int r, int a) { createOp(INS_IDIV, r, a); }
 	void createIMod(int r, int a) { createOp(INS_IMOD, r, a); }
-	void createINeg(int r) {
-		addInst(INS_INEG);
-		addInt(r);
-		assert(stype[r] == TYPE_INT);
-	}
-	void createCall(Func *func, int shift, int rix) {
-		addInst(INS_CALL);
-		addFunc(func);
-		addInt(shift);
-		addInt(rix);
-		stype[rix] = TYPE_INT;
-	}
-	void createSpawn(Func *func, int shift, int rix) {
-		addInst(INS_SPAWN);
-		addFunc(func);
-		addInt(shift);
-		addInt(rix);
-		stype[rix] = TYPE_FUTURE;
-	}
-	void createJoin(int n) {
-		addInst(INS_JOIN);
-		addInt(n);
-		assert(stype[n] == TYPE_FUTURE);
-		stype[n] = TYPE_INT;
-	}
-	void createRet() { 
-		if(func != NULL && func->argc != 0) { createMov(0, func->argc); }
-		addInst(INS_RET);
-	}
-	void createExit() {
-		if(func != NULL && func->argc != 0) { createMov(0, func->argc); }
-		addInst(INS_EXIT);
-	}
-	void setLabel(int n) {
-		code[n + 1].i = ci - n;
-	}
-	void accept(Func *func) {
-		Code *c = new Code[ci];
-		memcpy(c, code, sizeof(Code) * ci);
-		func->code = c;
-	}
+	void createINeg(int r);
+	void createCall(Func *func, int shiftsfp, int rix);
+	void createSpawn(Func *func, int shiftsfp, int rix);
+	void createJoin(int n);
+	void createRet();
+	void createExit();
+	void setLabel(int n);
+	void accept(Func *func);
 };
 
 #endif

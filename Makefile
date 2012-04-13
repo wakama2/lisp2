@@ -7,6 +7,7 @@ LIB = -lreadline -lpthread
 SRCS = \
 	src/vm.cpp \
 	src/codegen.cpp \
+	src/builder.cpp \
 	src/thread.cpp \
 	src/lisp.cpp \
 	src/parse.cpp
