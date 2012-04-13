@@ -21,7 +21,7 @@ static void genIntValue(Context *ctx, Cons *cons, CodeBuilder *cb) {
 			}
 		}
 	} else if(cons->type == CONS_CAR) {
-		codegen(ctx, cons->car, cb);
+		cons->car->codegen(cb);
 	} else {
 		fprintf(stderr, "integer require\n");
 		exit(1);
@@ -116,7 +116,7 @@ static void genDefun(Context *ctx, Func * /*unused*/, Cons *cons, CodeBuilder *)
 	cons = cons->cdr;
 	Func *func = addfunc(ctx, name, args);
 	CodeBuilder *cb = new CodeBuilder(ctx, func);
-	codegen(ctx, cons, cb);
+	cons->codegen(cb);
 	//cb->createRet();
 	cb->createExit();
 	cb->accept(func);
@@ -133,22 +133,23 @@ static void genCall(Context *ctx, Func *func, Cons *cons, CodeBuilder *cb) {
 	cb->createSpawn(func, sp, sp);
 }
 
-void codegen(Context *ctx, Cons *cons, CodeBuilder *cb) {
-	if(cons->type == CONS_CAR) {
-		codegen(ctx, cons->car, cb);
-	} else if(cons->type == CONS_STR) {
-		if(strcmp(cons->str, "+") == 0) {
-			genAdd(ctx, NULL, cons->cdr, cb);		
-		} else if(strcmp(cons->str, "-") == 0) {
-			genSub(ctx, NULL, cons->cdr, cb);		
-		} else if(strcmp(cons->str, "defun") == 0) {
-			genDefun(ctx, NULL, cons->cdr, cb);
-		} else if(strcmp(cons->str, "if") == 0) {
-			genIf(ctx, NULL, cons->cdr, cb);
+void Cons::codegen(CodeBuilder *cb) {
+	Context *ctx = cb->ctx;
+	if(this->type == CONS_CAR) {
+		this->car->codegen(cb);
+	} else if(this->type == CONS_STR) {
+		if(strcmp(this->str, "+") == 0) {
+			genAdd(ctx, NULL, this->cdr, cb);		
+		} else if(strcmp(this->str, "-") == 0) {
+			genSub(ctx, NULL, this->cdr, cb);		
+		} else if(strcmp(this->str, "defun") == 0) {
+			genDefun(ctx, NULL, this->cdr, cb);
+		} else if(strcmp(this->str, "if") == 0) {
+			genIf(ctx, NULL, this->cdr, cb);
 		} else {
 			for(int i=0; i<ctx->funcLen; i++) {
-				if(strcmp(cons->str, ctx->funcs[i]->name) == 0) {
-					genCall(ctx, ctx->funcs[i], cons->cdr, cb);
+				if(strcmp(this->str, ctx->funcs[i]->name) == 0) {
+					genCall(ctx, ctx->funcs[i], this->cdr, cb);
 					return;
 				}
 			}

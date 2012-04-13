@@ -102,8 +102,7 @@ L_INS_SPAWN: {
 	}
 	goto *((pc += 4)->ptr);
 
-L_INS_JOIN:
-	{
+L_INS_JOIN: {
 		int n = pc[1].i;
 		Future *f = sp[n].future;
 		sp[n].i = f->getResult(f);

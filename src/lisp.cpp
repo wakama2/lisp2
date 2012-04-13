@@ -28,74 +28,6 @@ void Cons::println(FILE *fp) {
 }
 
 //------------------------------------------------------
-static int eval2_getResult(Future *f) {
-	WorkerThread *wth = f->wth;
-	joinWorkerThread(wth);
-	int res = wth->stack[0].i;
-	deleteWorkerThread(wth);
-	return res;
-}
-
-static void *WorkerThread_Start(void *ptr) {
-	WorkerThread *wth = (WorkerThread *)ptr;
-	vmrun(wth->ctx, wth);
-	return NULL;
-}
-
-static int getThreadId(WorkerThread *wth) {
-	return wth == NULL ? -1 : (wth - wth->ctx->wth);
-}
-
-WorkerThread *newWorkerThread(Context *ctx, WorkerThread *parent, Code *pc, int argc, Value *argv) {
-	WorkerThread *wth = NULL;
-
-	pthread_mutex_lock(&ctx->lock);
-	//ATOMIC_ADD(&ctx->threadCount, 1);
-	ctx->threadCount++;
-
-	wth = ctx->freeThread;
-	if(wth != NULL) {
-		ctx->freeThread = wth->next;
-	}
-	pthread_mutex_unlock(&ctx->lock);
-	if(wth == NULL) {
-		//abort();
-		return NULL;
-	}
-	wth->parent = parent;
-	if(argc == 1) printf("[%d]: start %d p=%d\n", getThreadId(wth), argv[0].i, getThreadId(wth->parent));
-
-	//WorkerThread *wth = new WorkerThread();
-	wth->pc = pc;
-	wth->fp = wth->frame;
-	wth->sp = wth->stack;
-	if(argc != 0) {
-		memcpy(wth->stack, argv, sizeof(argv[0]) * argc);
-	}
-	Future *future = &wth->future;
-	future->wth = wth;
-	future->getResult = eval2_getResult;
-	pthread_create(&wth->pth, NULL, WorkerThread_Start, wth);
-	return wth;
-}
-
-void joinWorkerThread(WorkerThread *wth) {
-	printf("[%d]: join\n", getThreadId(wth));
-	pthread_join(wth->pth, NULL);
-}
-
-void deleteWorkerThread(WorkerThread *wth) {
-	//delete wth;
-	Context *ctx = wth->ctx;
-	pthread_mutex_lock(&ctx->lock);
-	ctx->threadCount--;
-	//wth->next = ctx->freeThread;
-	//ctx->freeThread = wth;
-	//printf("[%d]: exit\n", getThreadId(wth));
-	pthread_mutex_unlock(&ctx->lock);
-}
-
-//------------------------------------------------------
 static void runCons(Context *ctx, Cons *cons) {
 	if(cons->type == CONS_CAR) {
 		for(; cons != NULL; cons = cons->cdr) {
@@ -105,12 +37,9 @@ static void runCons(Context *ctx, Cons *cons) {
 		return;
 	}
 	CodeBuilder *cb = new CodeBuilder(ctx, NULL);
-	codegen(ctx, cons, cb);
+	cons->codegen(cb);
 	if(cb->stype[0] == TYPE_FUTURE) cb->createJoin(0);
 	cb->createExit();
-	//joinWorkerThread(wth);
-	//printf("%d\n", wth->stack[0]);
-	//deleteWorkerThread(wth);
 	WorkerThread *wth = newWorkerThread(ctx, NULL, cb->code, 0, NULL);
 	Future *f = &wth->future;
 	printf("%d\n", f->getResult(f));
@@ -155,35 +84,14 @@ static void runFromFile(Context *ctx, const char *filename) {
 }
 
 //------------------------------------------------------
-static Context *newContext() {
-	Context *ctx = new Context();
-	ctx->funcLen = 0;
-	ctx->threadCount = 0;
-	ctx->freeThread = &ctx->wth[0];
-	pthread_mutex_init(&ctx->lock, NULL);
-	for(int i=0; i<TH_MAX; i++) {
-		ctx->wth[i].ctx = ctx;
-		ctx->wth[i].next = ctx->wth + i + 1;
-		ctx->wth[i].parent = NULL;
-	}
-	ctx->wth[TH_MAX-1].next = NULL;
-	vmrun(ctx, NULL); /* init jmptable */
-	return ctx;
-}
-
-static void deleteContext(Context *ctx) {
-	delete ctx;
-}
-
-//------------------------------------------------------
 int main(int argc, char **argv) {
-	Context *ctx = newContext();
+	Context *ctx = new Context();
 	if(argc >= 2) {
 		runFromFile(ctx, argv[1]);
 	} else {
 		runInteractive(ctx);
 	}
-	deleteContext(ctx);
+	delete ctx;
 	return 0;
 }
 

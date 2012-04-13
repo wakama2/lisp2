@@ -9,10 +9,12 @@
 
 struct Code;
 struct Func;
-struct Context;
 struct Value;
 struct Future;
-struct WorkerThread;
+struct Cons;
+class WorkerThread;
+class Context;
+class CodeBuilder;
 
 #define TH_MAX 9
 #define ATOMIC_ADD(p, v) __sync_fetch_and_add(p, v)
@@ -43,9 +45,12 @@ struct Future {
 	int (*getResult)(Future *);
 };
 
-struct WorkerThread {
-	pthread_t pth;
+class WorkerThread {
+public:
 	Context *ctx;
+	pthread_t pth;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
 	// exec
 	Code *pc;
 	Value *sp;
@@ -56,23 +61,35 @@ struct WorkerThread {
 	Future future;
 	Frame frame[64];
 	Value stack[256];
+
+	void lock();
+	void unlock();
 };
 
-struct Context {
+class Context {
+private:
+	pthread_mutex_t mutex;
+
+public:
 	void *jmptable[256];
 	Func *funcs[256];
 	int funcLen;
 	WorkerThread wth[TH_MAX];
 	WorkerThread *freeThread;
 	int threadCount;
-	pthread_mutex_t lock;
+
+	// methods
+	Context();
+	~Context();
+	void lock();
+	void unlock();
 };
 
 void vmrun(Context *ctx, WorkerThread *wth);
 WorkerThread *newWorkerThread(Context *ctx, WorkerThread *wth, Code *pc, int argc, Value *argv);
 void joinWorkerThread(WorkerThread *wth);
 void deleteWorkerThread(WorkerThread *wth);
-	
+
 //------------------------------------------------------
 // cons
 
@@ -93,6 +110,7 @@ struct Cons {
 
 	void print(FILE *fp = stdout);
 	void println(FILE *fp = stdout);
+	void codegen(CodeBuilder *cb);
 };
 
 struct Func {
@@ -258,8 +276,6 @@ public:
 		func->code = c;
 	}
 };
-
-void codegen(Context *ctx, Cons *cons, CodeBuilder *cb);
 
 #endif
 
