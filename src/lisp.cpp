@@ -27,6 +27,16 @@ void Cons::println(FILE *fp) {
 	fprintf(fp, "\n");
 }
 
+
+static pthread_mutex_t g_lock;
+static pthread_cond_t  g_cond;
+
+static void end_script(Task *task, WorkerThread *wth) {
+	pthread_mutex_lock(&g_lock);
+	pthread_cond_signal(&g_cond);
+	pthread_mutex_unlock(&g_lock);
+}
+
 //------------------------------------------------------
 static void runCons(Context *ctx, Cons *cons) {
 	if(cons->type == CONS_CAR) {
@@ -36,14 +46,21 @@ static void runCons(Context *ctx, Cons *cons) {
 		}
 		return;
 	}
-	CodeBuilder *cb = new CodeBuilder(ctx, NULL);
+	Func *func = new Func();
+	func->name = "__script";
+	func->argc = 0;
+	CodeBuilder *cb = new CodeBuilder(ctx, func);
 	codegen(cb, cons, 0);
+	cb->createRet();
+	cb->accept(func);
 
 	Scheduler *sche = new Scheduler(ctx);
+	Task *task = sche->newTask(func, NULL, end_script);
 
-	Task *task = sche->newTask();
+	pthread_mutex_lock(&g_lock);
 	sche->enqueue(task);
-	while(task->stat == TASK_RUN);
+	pthread_cond_wait(&g_cond, &g_lock);
+	pthread_mutex_unlock(&g_lock);
 
 	printf("%d\n", task->stack[0].i);
 	delete cb;
@@ -89,6 +106,8 @@ static void runFromFile(Context *ctx, const char *filename) {
 //------------------------------------------------------
 int main(int argc, char **argv) {
 	Context *ctx = new Context();
+	pthread_mutex_init(&g_lock, NULL);
+	pthread_cond_init(&g_cond, NULL);
 	if(argc >= 2) {
 		runFromFile(ctx, argv[1]);
 	} else {

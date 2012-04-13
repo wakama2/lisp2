@@ -4,6 +4,7 @@
 Context::Context() {
 	funclist = NULL;
 	vmrun(this, NULL, NULL); // init jmptable
+	addDefaultFuncs(this);   // init funcs
 }
 
 Context::~Context() {

@@ -18,8 +18,15 @@ class Scheduler;
 class Context;
 class CodeBuilder;
 
+//------------------------------------------------------
+// configuration
+
 #define WORKER_MAX 8
 #define TASK_MAX   (WORKER_MAX * 4)
+
+//------------------------------------------------------
+// atomic function
+
 #define ATOMIC_ADD(p, v) __sync_fetch_and_add(p, v)
 #define ATOMIC_SUB(p, v) __sync_fetch_and_sub(p, v)
 #define CAS(a, ov, nv) __sync_bool_compare_and_swap(&a, ov, nv)
@@ -90,6 +97,8 @@ void addDefaultFuncs(Context *ctx);
 
 #define TASK_STACKSIZE 256
 
+typedef void (*TaskMethod)(Task *task, WorkerThread *wth);
+
 enum TaskStat {
 	TASK_RUN,
 	TASK_END,
@@ -102,6 +111,7 @@ struct Task {
 	// exec info
 	Code  *pc;
 	Value *sp;
+	TaskMethod dest;
 	Value stack[TASK_STACKSIZE];
 };
 
@@ -137,12 +147,12 @@ public:
 	Scheduler(Context *ctx);
 	void enqueue(Task *task);
 	Task *dequeue();
-	Task *newTask();
+	Task *newTask(Func *func, Value *args, TaskMethod dest);
 	void deleteTask(Task *task);
 };
 
 //------------------------------------------------------
-// cons
+// cons cell
 
 enum {
 	CONS_INT,
@@ -190,14 +200,12 @@ class CodeBuilder {
 private:
 	Code code[256];
 	int ci;
-	ValueType vtype[256];
 	void addInst(int inst);
 	void addInt(int n);
 	void addFunc(Func *func);
 
 public:
 	Context *ctx;
-	int sp;
 	Func *func;
 
 	CodeBuilder(Context *_ctx, Func *_func);

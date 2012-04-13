@@ -3,12 +3,11 @@
 CodeBuilder::CodeBuilder(Context *ctx, Func *func) {
 	this->ctx = ctx;
 	this->func = func;
-	sp = func != NULL ? func->argc : 0;
 	ci = 0;
 }
 
 void CodeBuilder::addInst(int inst) {
-	printf("%03d: %s\n", ci, ctx->getInstName(inst));
+	//printf("%03d: %s\n", ci, ctx->getInstName(inst));
 	code[ci++].ptr = ctx->getDTLabel(inst);
 }
 

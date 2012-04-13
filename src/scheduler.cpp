@@ -59,11 +59,17 @@ Task *Scheduler::dequeue() {
 	return task;
 }
 
-Task *Scheduler::newTask() {
+Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 	Task *oldtop = freelist;
 	if(oldtop != NULL) {
 		Task *newtop = oldtop->next;
 		if(CAS(freelist, oldtop, newtop)) {
+			// init
+			Task *task = oldtop;
+			task->pc = func->code;
+			task->sp = task->stack;
+			task->dest = dest;
+			memcpy(task->sp, args, func->argc * sizeof(Value));
 			return oldtop;
 		}
 	}

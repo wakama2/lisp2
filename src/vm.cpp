@@ -10,6 +10,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	register Code *pc  = task->pc;
 	register Value *sp = task->sp;
 	Scheduler *sche = wth->sche;
+	Value *spTop = task->stack;
 	goto *(pc->ptr);
 
 L_INS_ICONST:
@@ -72,16 +73,17 @@ L_INS_JMP:
 	pc += pc[1].i;
 	goto *(pc->ptr);
 
-L_INS_CALL:
+L_INS_CALL: {
 	Value *sp2 = sp;
 	sp += pc[2].i;
 	sp[-2].sp = sp2;
 	sp[-1].pc = pc + 4;
 	pc = pc[1].func->code;
 	goto *(pc->ptr);
+}
 
 L_INS_SPAWN: {
-	Task *task = sche->newTask();
+	Task *task = sche->newTask(pc[1].func, sp + pc[2].i, NULL);
 	sp[pc[3].i].task = task;
 	if(task == NULL) {
 		// INS_CALL
@@ -107,13 +109,13 @@ L_INS_JOIN: {
 }
 
 L_INS_RET:
-	if(sp != task->stack) {
+	if(sp != spTop) {
 		pc = sp[-1].pc;
 		sp = sp[-2].sp;
 		goto *(pc->ptr);
 	} else {
 		task->stat = TASK_END;
-		// call task destructor
+		if(task->dest != NULL) task->dest(task, wth);
 		return;
 	}
 
