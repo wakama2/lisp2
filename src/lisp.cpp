@@ -37,12 +37,15 @@ static void runCons(Context *ctx, Cons *cons) {
 		return;
 	}
 	CodeBuilder *cb = new CodeBuilder(ctx, NULL);
-	cons->codegen(cb);
-	if(cb->stype[0] == TYPE_FUTURE) cb->createJoin(0);
-	cb->createExit();
-	WorkerThread *wth = newWorkerThread(ctx, NULL, cb->code, 0, NULL);
-	Future *f = &wth->future;
-	printf("%d\n", f->getResult(f));
+	codegen(cb, cons, 0);
+
+	Scheduler *sche = new Scheduler(ctx);
+
+	Task *task = sche->newTask();
+	sche->enqueue(task);
+	while(task->stat == TASK_RUN);
+
+	printf("%d\n", task->stack[0].i);
 	delete cb;
 }
 

@@ -8,7 +8,8 @@ SRCS = \
 	src/vm.cpp \
 	src/codegen.cpp \
 	src/builder.cpp \
-	src/thread.cpp \
+	src/context.cpp \
+	src/scheduler.cpp \
 	src/lisp.cpp \
 	src/parse.cpp
 HEADERS = \

@@ -33,13 +33,6 @@ enum {
 #undef I
 };
 
-enum {
-	TYPE_INT,
-	TYPE_TNIL,
-	TYPE_STR,
-	TYPE_FUTURE,
-};
-
 struct Code {
 	union {
 		int i;
@@ -54,15 +47,25 @@ struct Value {
 		double d;
 		const char *str;
 		Task *task;
-		void *pc;
+		Code *pc;
+		Value *sp;
 	};
 };
+
+enum ValueType {
+	VT_INT,
+	VT_TNIL,
+	VT_FUTURE,
+};
+
+typedef void (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
 
 struct Func {
 	const char *name;
 	int argc;
 	const char *args[64];
 	Code *code;
+	CodeGenFunc codegen;
 	Func *next;
 };
 
@@ -74,11 +77,13 @@ public:
 
 	Context();
 	~Context();
-
-	Func *newFunc(const char *name, int argc, const char **argv);
+	void putFunc(Func *func);
+	Func *getFunc(const char *name);
 	void *getDTLabel(int ins); /* direct threaded code label */
 	const char *getInstName(int ins);
 };
+
+void addDefaultFuncs(Context *ctx);
 
 //------------------------------------------------------
 // task
@@ -101,6 +106,18 @@ struct Task {
 };
 
 //------------------------------------------------------
+// worker thread
+
+struct WorkerThread {
+	Context *ctx;
+	Scheduler *sche;
+	int id;
+	pthread_t pth;
+};
+
+void vmrun(Context *ctx, WorkerThread *wth, Task *task);
+
+//------------------------------------------------------
 // scheduler
 
 class Scheduler {
@@ -110,30 +127,19 @@ private:
 	pthread_mutex_t tl_lock;
 	pthread_cond_t  tl_cond;
 	Task *taskpool;
-	Task *freetl_head;
+	Task *freelist;
 	Task dummyTask;
 
 	WorkerThread *wthpool;
 
 public:
-	Scheduler();
+	Context *ctx;
+	Scheduler(Context *ctx);
 	void enqueue(Task *task);
 	Task *dequeue();
 	Task *newTask();
-	void delTask();
+	void deleteTask(Task *task);
 };
-
-//------------------------------------------------------
-// worker thread
-
-struct WorkerThread {
-	Context *ctx;
-	Scheduler *sche;
-	pthread_t pth;
-	int id;
-};
-
-void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 
 //------------------------------------------------------
 // cons
@@ -155,7 +161,6 @@ struct Cons {
 
 	void print(FILE *fp = stdout);
 	void println(FILE *fp = stdout);
-	void codegen(CodeBuilder *cb);
 };
 
 //------------------------------------------------------
@@ -183,26 +188,22 @@ ParseResult<Cons *> parseExpr(const char *src);
 
 class CodeBuilder {
 private:
-	Context *ctx;
-	Func *func;
 	Code code[256];
 	int ci;
-	int stype[256];
-	int sp;
-
-public:
-	CodeBuilder(Context *_ctx, Func *_func);
-
+	ValueType vtype[256];
 	void addInst(int inst);
 	void addInt(int n);
 	void addFunc(Func *func);
+
+public:
+	Context *ctx;
+	int sp;
+	Func *func;
+
+	CodeBuilder(Context *_ctx, Func *_func);
 	void createIConst(int r, int i);
 	void createMov(int r, int n);
 	void createOp(int inst, int r, int a);
-	// return label
-	int createCondOp(int inst, int a, int b);
-	int createJmp();
-
 	void createIAdd(int r, int a) { createOp(INS_IADD, r, a); }
 	void createISub(int r, int a) { createOp(INS_ISUB, r, a); }
 	void createIMul(int r, int a) { createOp(INS_IMUL, r, a); }
@@ -213,10 +214,14 @@ public:
 	void createSpawn(Func *func, int shiftsfp, int rix);
 	void createJoin(int n);
 	void createRet();
-	void createExit();
+	int createCondOp(int inst, int a, int b); // return label
+	int createJmp();
 	void setLabel(int n);
+
 	void accept(Func *func);
 };
+
+void codegen(CodeBuilder *cb, Cons *cons, int sp);
 
 #endif
 
