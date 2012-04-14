@@ -20,7 +20,7 @@ Scheduler::Scheduler(Context *ctx) {
 
 	// init task list
 	taskpool = new Task[TASK_MAX];
-	freelist = taskpool;
+	freelist = &taskpool[0];
 	for(int i=0; i<TASK_MAX; i++) {
 		taskpool[i].next = &taskpool[i+1];
 	}
@@ -37,6 +37,7 @@ Scheduler::Scheduler(Context *ctx) {
 	}
 }
 
+//------------------------------------------------------
 void Scheduler::enqueue(Task *task) {
 	task->next = NULL;
 	pthread_mutex_lock(&tl_lock);
@@ -58,6 +59,7 @@ Task *Scheduler::dequeue() {
 	return task;
 }
 
+//------------------------------------------------------
 Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 	Task *oldtop = freelist;
 	if(oldtop != NULL) {

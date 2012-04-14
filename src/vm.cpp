@@ -5,20 +5,24 @@
 # define SWITCHEND 
 # define CASE(a)     L_##a:
 # define NEXT()      goto *(pc->ptr)
+# define DEFAULT		 L_ERROR:
 #else
 # define SWITCHBEGIN L_HEAD: switch(pc->i) {
 # define SWITCHEND   }
 # define CASE(a)     case a:
 # define NEXT()      goto L_HEAD
+# define DEFAULT		 default:
 #endif
 
 void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
+#ifdef USING_THCODE
 	if(wth == NULL) {
 #define I(a) ctx->jmptable[a] = &&L_##a;
 #include "inst"
 #undef I
 		return;
 	}
+#endif
 	register Code *pc  = task->pc;
 	register Value *sp = task->sp;
 	Scheduler *sche = wth->sche;
@@ -133,6 +137,11 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		fprintf(stdout, "%s\n", sp[pc[1].i].i ? "T" : "Nil");
 		pc += 2;
 	} NEXT();
+
+	DEFAULT {
+		fprintf(stderr, "Error instruction!\n");
+		exit(1);
+	};
 
 	SWITCHEND;
 }

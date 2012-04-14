@@ -3,7 +3,9 @@
 //------------------------------------------------------
 Context::Context() {
 	funclist = NULL;
+#ifdef USING_THCODE
 	vmrun(this, NULL, NULL); // init jmptable
+#endif
 	addDefaultFuncs(this);   // init funcs
 }
 
@@ -25,9 +27,11 @@ Func *Context::getFunc(const char *name) {
 }
 
 //------------------------------------------------------
+#ifdef USING_THCODE
 void *Context::getDTLabel(int ins) {
 	return jmptable[ins];
 }
+#endif
 
 const char *Context::getInstName(int inst) {
 	switch(inst) {

@@ -37,8 +37,6 @@ class CodeBuilder;
 #define ATOMIC_SUB(p, v) __sync_fetch_and_sub(p, v)
 #define CAS(a, ov, nv) __sync_bool_compare_and_swap(&a, ov, nv)
 
-#define USING_THCODE
-
 //------------------------------------------------------
 // instruction, code, value
 
@@ -94,7 +92,9 @@ class Context {
 private:
 	Func *funclist;
 public:
+#ifdef USING_THCODE
 	void *jmptable[256];
+#endif
 	Scheduler *sche;
 
 	Context();
