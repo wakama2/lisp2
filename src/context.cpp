@@ -3,6 +3,7 @@
 //------------------------------------------------------
 Context::Context() {
 	funclist = NULL;
+	varlist = NULL;
 #ifdef USING_THCODE
 	vmrun(this, NULL, NULL); // init jmptable
 #endif
@@ -22,6 +23,19 @@ void Context::putFunc(Func *func) {
 Func *Context::getFunc(const char *name) {
 	for(Func *f = funclist; f != NULL; f = f->next) {
 		if(strcmp(f->name, name) == 0) return f;
+	}
+	return NULL;
+}
+
+//------------------------------------------------------
+void Context::putVar(Variable *var) {
+	var->next = varlist;
+	varlist = var;
+}
+
+Variable *Context::getVar(const char *name) {
+	for(Variable *v = varlist; v != NULL; v = v->next) {
+		if(strcmp(v->name, name) == 0) return v;
 	}
 	return NULL;
 }

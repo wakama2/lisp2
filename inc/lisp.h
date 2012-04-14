@@ -20,9 +20,9 @@
 #include <pthread.h>
 
 struct Code;
-struct Func;
 struct Value;
-struct Future;
+struct Func;
+struct Variable;
 struct Cons;
 struct WorkerThread;
 struct Task;
@@ -51,6 +51,7 @@ struct Code {
 		int i;
 		void *ptr;
 		Func *func;
+		Variable *var;
 	};
 };
 
@@ -85,12 +86,19 @@ struct Func {
 	Func *next;
 };
 
+struct Variable {
+	const char *name;
+	Value value;
+	Variable *next;
+};
+
 //------------------------------------------------------
 // context
 
 class Context {
 private:
 	Func *funclist;
+	Variable *varlist;
 public:
 #ifdef USING_THCODE
 	void *jmptable[256];
@@ -101,6 +109,8 @@ public:
 	~Context();
 	void putFunc(Func *func);
 	Func *getFunc(const char *name);
+	void putVar(Variable *var);
+	Variable *getVar(const char *name);
 	void *getDTLabel(int ins); /* direct threaded code label */
 	const char *getInstName(int ins);
 };
@@ -216,6 +226,7 @@ private:
 	void addInst(int inst);
 	void addInt(int n);
 	void addFunc(Func *func);
+	void addVar(Variable *var);
 
 public:
 	Context *ctx;
@@ -231,6 +242,8 @@ public:
 	void createIDiv(int r, int a) { createOp(INS_IDIV, r, a); }
 	void createIMod(int r, int a) { createOp(INS_IMOD, r, a); }
 	void createINeg(int r);
+	void createLoadGlobal(Variable *var, int r);
+	void createStoreGlobal(Variable *var, int r);
 	void createCall(Func *func, int shiftsfp, int rix);
 	void createSpawn(Func *func, int shiftsfp, int rix);
 	void createJoin(int n);

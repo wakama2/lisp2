@@ -27,7 +27,7 @@ void Cons::println(FILE *fp) {
 	fprintf(fp, "\n");
 }
 
-
+//------------------------------------------------------
 static pthread_mutex_t g_lock;
 static pthread_cond_t  g_cond;
 
@@ -102,6 +102,7 @@ static void runFromFile(Context *ctx, const char *filename) {
 			break;
 		}
 	}
+	fclose(fp);
 }
 
 //------------------------------------------------------

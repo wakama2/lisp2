@@ -24,6 +24,10 @@ void CodeBuilder::addFunc(Func *func) {
 	code[ci++].func = func;
 }
 
+void CodeBuilder::addVar(Variable *var) {
+	code[ci++].var = var;
+}
+
 void CodeBuilder::createIConst(int r, int i) {
 	addInst(INS_ICONST);
 	addInt(r);
@@ -60,6 +64,18 @@ int CodeBuilder::createJmp() {
 
 void CodeBuilder::createINeg(int r) {
 	addInst(INS_INEG);
+	addInt(r);
+}
+
+void CodeBuilder::createLoadGlobal(Variable *var, int r) {
+	addInst(INS_LOAD_GLOBAL);
+	addVar(var);
+	addInt(r);
+}
+
+void CodeBuilder::createStoreGlobal(Variable *var, int r) {
+	addInst(INS_LOAD_GLOBAL);
+	addVar(var);
 	addInt(r);
 }
 

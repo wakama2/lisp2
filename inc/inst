@@ -19,6 +19,9 @@ I(INS_IJMPEQ)
 I(INS_IJMPNE)
 // jmp pc+[r1]
 I(INS_JMP)
+// global variable [var] [r1]
+I(INS_LOAD_GLOBAL)
+I(INS_STORE_GLOBAL)
 // call [func], shift, rix
 I(INS_CALL)
 I(INS_SPAWN)

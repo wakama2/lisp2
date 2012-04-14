@@ -72,6 +72,16 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += pc[1].i;
 	} NEXT();
 
+	CASE(INS_LOAD_GLOBAL) {
+		sp[pc[2].i] = pc[1].var->value;
+		pc += 3;
+	} NEXT();
+
+	CASE(INS_STORE_GLOBAL) {
+		pc[1].var->value = sp[pc[2].i];
+		pc += 3;
+	} NEXT();
+
 	CASE(INS_CALL) {
 		Value *sp2 = sp;
 		sp += pc[2].i;

@@ -15,19 +15,21 @@ static void genIntValue(Cons *cons, CodeBuilder *cb, int sp) {
 	if(cons->type == CONS_INT) {
 		cb->createIConst(sp, cons->i);
 	} else if(cons->type == CONS_STR) {
-		Func *func = cb->func;
-		if(func != NULL) {
-			int n = getArgIndex(func, cons->str);
+		const char *name = cons->str;
+		if(cb->func != NULL) {
+			int n = getArgIndex(cb->func, name);
 			if(n != -1) {
 				cb->createMov(sp, n);
-			} else {
-				fprintf(stderr, "symbol not found: %s\n", cons->str);
-				exit(1);
+				return;
 			}
-		} else {
-			fprintf(stderr, "symbol not found: %s\n", cons->str);
-			exit(1);
 		}
+		Variable *var = cb->ctx->getVar(name);
+		if(var != NULL) {
+			cb->createLoadGlobal(var, sp);
+			return;
+		}
+		fprintf(stderr, "symbol not found: %s\n", cons->str);
+		exit(1);
 	} else if(cons->type == CONS_CAR) {
 		cb->codegen(cons, sp);
 	} else {
@@ -154,7 +156,6 @@ static Func *newFunc(const char *name, Cons *args,
 }
 
 #define RSFT 2
-
 static void genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 	int n = 0;
 	for(; cons != NULL; cons = cons->cdr) {
@@ -172,6 +173,21 @@ static void genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 		n++;
 	}
 	cb->createSpawn(func, sp + SRSFT, 0);
+}
+
+static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	assert(cons->type == CONS_STR);
+	const char *name = cons->str;
+	cons = cons->cdr;
+	Cons *expr = cons;
+
+	Variable *v = new Variable();
+	v->name = name;
+	v->value.i = 0;
+	cb->ctx->putVar(v);
+
+	genIntValue(expr, cb, sp);
+	cb->createStoreGlobal(v, sp);
 }
 
 static void genDefun(Func *, Cons *cons, CodeBuilder *_cb, int sp) {
@@ -201,8 +217,7 @@ void addDefaultFuncs(Context *ctx) {
 	//ctx->putFunc(newFunc("==", NULL, genAdd));
 	//ctx->putFunc(newFunc("!=", NULL, genAdd));
 	ctx->putFunc(newFunc("if", NULL, genIf));
-	//ctx->putFunc(newFunc("setq", NULL, genAdd));
+	ctx->putFunc(newFunc("setq", NULL, genSetq));
 	ctx->putFunc(newFunc("defun", NULL, genDefun));
 }
-
 
