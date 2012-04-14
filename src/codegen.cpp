@@ -78,6 +78,33 @@ static void genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	}
 }
 
+static void genMul(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	genIntValue(cons, cb, sp);
+	cons = cons->cdr;
+	for(; cons != NULL; cons = cons->cdr) {
+		genIntValue(cons, cb, sp + 1);
+		cb->createIMul(sp, sp + 1);
+	}
+}
+
+static void genDiv(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	genIntValue(cons, cb, sp);
+	cons = cons->cdr;
+	for(; cons != NULL; cons = cons->cdr) {
+		genIntValue(cons, cb, sp + 1);
+		cb->createIDiv(sp, sp + 1);
+	}
+}
+
+static void genMod(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	genIntValue(cons, cb, sp);
+	cons = cons->cdr;
+	for(; cons != NULL; cons = cons->cdr) {
+		genIntValue(cons, cb, sp + 1);
+		cb->createIMod(sp, sp + 1);
+	}
+}
+
 static int toOp(const char *s) {
 	if(strcmp(s, "<") == 0)  return INS_IJMPGE;
 	if(strcmp(s, "<=") == 0) return INS_IJMPGT;
@@ -164,9 +191,9 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *_cb, int sp) {
 void addDefaultFuncs(Context *ctx) {
 	ctx->putFunc(newFunc("+", NULL, genAdd));
 	ctx->putFunc(newFunc("-", NULL, genSub));
-	//ctx->putFunc(newFunc("*", NULL, genAdd));
-	//ctx->putFunc(newFunc("/", NULL, genAdd));
-	//ctx->putFunc(newFunc("%", NULL, genAdd));
+	ctx->putFunc(newFunc("*", NULL, genMul));
+	ctx->putFunc(newFunc("/", NULL, genDiv));
+	ctx->putFunc(newFunc("%", NULL, genMod));
 	//ctx->putFunc(newFunc("<", NULL, genAdd));
 	//ctx->putFunc(newFunc(">", NULL, genAdd));
 	//ctx->putFunc(newFunc("<=", NULL, genAdd));
