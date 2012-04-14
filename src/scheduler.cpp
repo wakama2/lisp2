@@ -6,7 +6,6 @@ static void *WorkerThread_main(void *arg) {
 	while(true) {
 		Task *task = sche->dequeue();
 		assert(task != NULL && task->stat == TASK_RUN);
-		//task->run(task, wth);
 		vmrun(sche->ctx, wth, task);
 	}
 }
@@ -50,7 +49,7 @@ void Scheduler::enqueue(Task *task) {
 Task *Scheduler::dequeue() {
 	pthread_mutex_lock(&tl_lock);
 	while(tl_head->next == NULL) {
-		pthread_cond_wait(&tl_cond, &tl_lock);
+		pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
 	}
 	Task *task = tl_head->next;
 	tl_head->next = task->next;
@@ -69,6 +68,7 @@ Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 			task->pc = func->code;
 			task->sp = task->stack;
 			task->dest = dest;
+			task->stat = TASK_RUN;
 			memcpy(task->sp, args, func->argc * sizeof(Value));
 			return oldtop;
 		}

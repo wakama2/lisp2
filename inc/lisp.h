@@ -1,6 +1,18 @@
 #ifndef LISP_H
 #define LISP_H
 
+//------------------------------------------------------
+// configuration
+
+#define WORKER_MAX 9
+#define TASK_MAX   20 //(WORKER_MAX * 3)
+#define TASK_STACKSIZE 1024
+
+#define USING_THCODE
+
+//------------------------------------------------------
+// includes and structs
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,20 +31,16 @@ class Context;
 class CodeBuilder;
 
 //------------------------------------------------------
-// configuration
-
-#define WORKER_MAX 8
-#define TASK_MAX   (WORKER_MAX * 4)
-
-//------------------------------------------------------
 // atomic function
 
 #define ATOMIC_ADD(p, v) __sync_fetch_and_add(p, v)
 #define ATOMIC_SUB(p, v) __sync_fetch_and_sub(p, v)
 #define CAS(a, ov, nv) __sync_bool_compare_and_swap(&a, ov, nv)
 
+#define USING_THCODE
+
 //------------------------------------------------------
-// context
+// instruction, code, value
 
 enum {
 #define I(a) a,
@@ -65,6 +73,9 @@ enum ValueType {
 	VT_FUTURE,
 };
 
+//------------------------------------------------------
+// function
+
 typedef void (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
 
 struct Func {
@@ -76,11 +87,15 @@ struct Func {
 	Func *next;
 };
 
+//------------------------------------------------------
+// context
+
 class Context {
 private:
 	Func *funclist;
 public:
 	void *jmptable[256];
+	Scheduler *sche;
 
 	Context();
 	~Context();
@@ -94,8 +109,6 @@ void addDefaultFuncs(Context *ctx);
 
 //------------------------------------------------------
 // task
-
-#define TASK_STACKSIZE 256
 
 typedef void (*TaskMethod)(Task *task, WorkerThread *wth);
 
@@ -227,9 +240,8 @@ public:
 	void setLabel(int n);
 
 	void accept(Func *func);
+	void codegen(Cons *cons, int sp);
 };
-
-void codegen(CodeBuilder *cb, Cons *cons, int sp);
 
 #endif
 

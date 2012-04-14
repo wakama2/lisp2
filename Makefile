@@ -6,10 +6,10 @@ INCDIR = -Iinc
 LIB = -lreadline -lpthread
 SRCS = \
 	src/vm.cpp \
+	src/scheduler.cpp \
 	src/codegen.cpp \
 	src/builder.cpp \
 	src/context.cpp \
-	src/scheduler.cpp \
 	src/lisp.cpp \
 	src/parse.cpp
 HEADERS = \
@@ -21,7 +21,7 @@ $(TARGET): $(HEADERS) $(OBJS)
 
 .SUFFIXES: .cpp.o
 .cpp.o: $(HEADERS)
-	$(CPP) $(CFLAGS) $(INCDIR) $(LIB) -o $@ -c $<
+	$(CPP) $(CFLAGS) $(INCDIR) -o $@ -c $< $(LIB)
 
 .PHONY: clean
 clean:

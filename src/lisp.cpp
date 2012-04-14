@@ -50,19 +50,20 @@ static void runCons(Context *ctx, Cons *cons) {
 	func->name = "__script";
 	func->argc = 0;
 	CodeBuilder *cb = new CodeBuilder(ctx, func);
-	codegen(cb, cons, 0);
+	cb->codegen(cons, 0);
 	cb->createRet();
 	cb->accept(func);
 
-	Scheduler *sche = new Scheduler(ctx);
+	Scheduler *sche = ctx->sche;
 	Task *task = sche->newTask(func, NULL, end_script);
-
+	assert(task != NULL);
 	pthread_mutex_lock(&g_lock);
 	sche->enqueue(task);
 	pthread_cond_wait(&g_cond, &g_lock);
 	pthread_mutex_unlock(&g_lock);
 
 	printf("%d\n", task->stack[0].i);
+	sche->deleteTask(task);
 	delete cb;
 }
 
@@ -106,6 +107,7 @@ static void runFromFile(Context *ctx, const char *filename) {
 //------------------------------------------------------
 int main(int argc, char **argv) {
 	Context *ctx = new Context();
+	ctx->sche = new Scheduler(ctx);
 	pthread_mutex_init(&g_lock, NULL);
 	pthread_cond_init(&g_cond, NULL);
 	if(argc >= 2) {

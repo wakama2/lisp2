@@ -1,5 +1,7 @@
 #include "lisp.h"
 
+static void genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp);
+
 static int getArgIndex(Func *func, const char *name) {
 	for(int i=0; i<func->argc; i++) {
 		if(strcmp(name, func->args[i]) == 0) {
@@ -23,24 +25,42 @@ static void genIntValue(Cons *cons, CodeBuilder *cb, int sp) {
 				exit(1);
 			}
 		} else {
-			fprintf(stderr, "integer require\n");
+			fprintf(stderr, "symbol not found: %s\n", cons->str);
 			exit(1);
 		}
 	} else if(cons->type == CONS_CAR) {
-		codegen(cb, cons, sp);
+		cb->codegen(cons, sp);
 	} else {
 		fprintf(stderr, "integer require\n");
 		exit(1);
 	}
 }
 
+static bool genIntTask(Cons *cons, CodeBuilder *cb, int sp) {
+	if(cons->type == CONS_CAR) {
+		const char *name = cons->car->str;
+		Func *func = cb->ctx->getFunc(name);
+		assert(func != NULL);
+		genSpawn(func, cons->car->cdr, cb, sp);
+		return true;
+	} else {
+		genIntValue(cons, cb, sp);
+		return false;
+	}
+}
+
 static void genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	if(cons == NULL) return;
-	genIntValue(cons, cb, sp);
+	bool tf = genIntTask(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		genIntValue(cons, cb, sp + 1);
-		cb->createIAdd(sp, sp + 1);
+		int sft = tf ? 3 : 1;
+		genIntValue(cons, cb, sp + sft);
+		if(tf) {
+			cb->createJoin(sp);
+			tf = false;
+		}
+		cb->createIAdd(sp, sp + sft);
 	}
 }
 
@@ -115,7 +135,16 @@ static void genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 		n++;
 	}
 	cb->createCall(func, sp + RSFT, 0/* unused */);
-	cb->createMov(sp, sp + RSFT);
+}
+
+#define SRSFT 3
+static void genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
+	int n = 0;
+	for(; cons != NULL; cons = cons->cdr) {
+		genIntValue(cons, cb, sp + SRSFT + n);
+		n++;
+	}
+	cb->createSpawn(func, sp + SRSFT, 0);
 }
 
 static void genDefun(Func *, Cons *cons, CodeBuilder *_cb, int sp) {
@@ -127,7 +156,7 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *_cb, int sp) {
 	_cb->ctx->putFunc(func);
 
 	CodeBuilder cb(_cb->ctx, func);
-	codegen(&cb, cons, func->argc);
+	cb.codegen(cons, func->argc);
 	cb.createRet();
 	cb.accept(func);
 }
@@ -149,16 +178,4 @@ void addDefaultFuncs(Context *ctx) {
 	ctx->putFunc(newFunc("defun", NULL, genDefun));
 }
 
-void codegen(CodeBuilder *cb, Cons *cons, int sp) {
-	if(cons->type == CONS_CAR) {
-		codegen(cb, cons->car, sp);
-	} else {
-		assert(cons->type == CONS_STR);
-		const char *name = cons->str;
-		Cons *args = cons->cdr;
-		Func *func = cb->ctx->getFunc(name);
-		assert(func != NULL);
-		func->codegen(func, args, cb, sp);
-	}
-}
 
