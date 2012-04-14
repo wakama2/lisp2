@@ -102,7 +102,6 @@ static void runFromFile(Context *ctx, const char *filename) {
 			break;
 		}
 	}
-	fclose(fp);
 }
 
 //------------------------------------------------------

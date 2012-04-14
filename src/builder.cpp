@@ -7,7 +7,7 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func) {
 }
 
 void CodeBuilder::addInst(int inst) {
-	//printf("%03d: %s\n", ci, ctx->getInstName(inst));
+	printf("%03d: %s\n", ci, ctx->getInstName(inst));
 #ifdef USING_THCODE
 	code[ci++].ptr = ctx->getDTLabel(inst);
 #else
@@ -74,7 +74,7 @@ void CodeBuilder::createLoadGlobal(Variable *var, int r) {
 }
 
 void CodeBuilder::createStoreGlobal(Variable *var, int r) {
-	addInst(INS_LOAD_GLOBAL);
+	addInst(INS_STORE_GLOBAL);
 	addVar(var);
 	addInt(r);
 }

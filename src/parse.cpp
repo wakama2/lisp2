@@ -32,6 +32,11 @@ static bool isNumber(char ch) {
 	return ch >= '0' && ch <= '9';
 }
 
+static int toLower(char ch) {
+	if(ch >= 'A' && ch <= 'Z') return ch - 'A' + 'a';
+	return ch;
+}
+
 static ParseResult<int> parseInt(const char *src) {
 	int num = 0;
 	while(isNumber(*src)) {
@@ -66,7 +71,7 @@ ParseResult<Cons *> parseExpr(const char *src) {
 		char str[256];
 		int len = 0;
 		while(!(isSpace(*src) || *src == ')' ||  *src == '(' || *src == '\0')) {
-			str[len++] = *src;
+			str[len++] = toLower(*src);
 			src++;
 		}
 		str[len] = '\0';

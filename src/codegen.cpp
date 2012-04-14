@@ -16,6 +16,14 @@ static void genIntValue(Cons *cons, CodeBuilder *cb, int sp) {
 		cb->createIConst(sp, cons->i);
 	} else if(cons->type == CONS_STR) {
 		const char *name = cons->str;
+		if(strcmp(name, "t") == 0) {
+			cb->createIConst(sp, 1);
+			return;
+		}
+		if(strcmp(name, "nil") == 0) {
+			cb->createIConst(sp, 0);
+			return;
+		}
 		if(cb->func != NULL) {
 			int n = getArgIndex(cb->func, name);
 			if(n != -1) {
@@ -119,16 +127,21 @@ static int toOp(const char *s) {
 
 // FIXME
 static void genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	Cons *cond = cons->car;
+	Cons *cond = cons;
 	cons = cons->cdr;
 	Cons *thenCons = cons;
 	cons = cons->cdr;
 	Cons *elseCons = cons;
 	// cond
-	int op = toOp(cond->str);
-	assert(op != -1);
-	genIntValue(cond->cdr, cb, sp);
-	genIntValue(cond->cdr->cdr, cb, sp + 1);
+	int op;
+	if(cond->type == CONS_CAR && (op = toOp(cond->car->str)) != -1) {
+		genIntValue(cond->car->cdr, cb, sp);
+		genIntValue(cond->car->cdr->cdr, cb, sp + 1);
+	} else {
+		genIntValue(cond, cb, sp);
+		cb->createIConst(sp + 1, 0); /* nil */
+		op = INS_IJMPEQ;
+	}
 	int label = cb->createCondOp(op, sp, sp+1);
 
 	// then expr
