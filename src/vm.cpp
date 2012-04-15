@@ -140,7 +140,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(INS_IPRINT) {
-		fprintf(stdout, "%d\n", sp[pc[1].i].i);
+		fprintf(stdout, "%ld\n", sp[pc[1].i].i);
 		pc += 2;
 	} NEXT();
 

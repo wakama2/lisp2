@@ -65,7 +65,7 @@ static void runCons(Context *ctx, Cons *cons) {
 	pthread_cond_wait(&g_cond, &g_lock);
 	pthread_mutex_unlock(&g_lock);
 
-	printf("%d\n", task->stack[0].i);
+	printf("%ld\n", task->stack[0].i);
 	sche->deleteTask(task);
 	delete [] func->code;
 	delete func;

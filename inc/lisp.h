@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 #include <pthread.h>
 
 struct Code;
@@ -49,7 +50,7 @@ enum {
 
 struct Code {
 	union {
-		int i;
+		int64_t i;
 		void *ptr;
 		Func *func;
 		Variable *var;
@@ -58,7 +59,7 @@ struct Code {
 
 struct Value {
 	union {
-		int i;
+		int64_t i;
 		double d;
 		const char *str;
 		Task *task;
