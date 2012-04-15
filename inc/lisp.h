@@ -195,7 +195,7 @@ struct Cons {
 	};
 	Cons *cdr;
 
-	Cons(ConsType type) { this->type = type; cdr = NULL; }
+	Cons(ConsType type) { this->type = type; car = NULL; cdr = NULL; }
 };
 
 void cons_free(Cons *cons);

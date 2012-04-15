@@ -104,6 +104,7 @@ void Tokenizer::printErrorMsg(const char *msg) {
 	fprintf(stderr, "^\n");
 }
 
+//------------------------------------------------------
 static bool parseError(Tokenizer *tk, const char *msg) {
 	tk->printErrorMsg(msg);
 	return false;
@@ -143,6 +144,6 @@ bool parseCons(Tokenizer *tk, Cons **res) {
 		*res = c;
 		return true;
 	}
-	return parseError(tk, "require \")\"");
+	return parseError(tk, "parse error");
 }
 

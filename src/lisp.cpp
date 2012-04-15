@@ -4,7 +4,7 @@
 
 //------------------------------------------------------
 void cons_free(Cons *cons) {
-	if(cons->type == CONS_CAR) {
+	if(cons->type == CONS_CAR && cons->car != NULL) {
 		cons_free(cons->car);
 	} else if(cons->type == CONS_STR) {
 		delete [] cons->str;
@@ -89,41 +89,63 @@ static void compileAndRun(Context *ctx, Reader r, void *rp) {
 }
 
 //------------------------------------------------------
+#define HISTFILE "history"
 struct CharReader {
-	const char *in;
+	char *in;
 	int index;
+	int length;
+	bool isEOF;
 };
 
-static int reader_char(void *p) {
+static int readChar(void *p) {
 	CharReader *cr = (CharReader *)p;
-	char ch = cr->in[cr->index];
-	if(ch) {
-		cr->index++;
-		return ch;
+	if(cr->isEOF) return EOF;
+	while(cr->in == NULL || cr->index >= cr->length) {
+		if(cr->in != NULL) {
+			if(cr->index <= cr->length + 2) {
+				cr->index++;
+				return '\n';
+			}
+			free(cr->in);
+		}
+		char *in = readline(">>");
+		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
+			cr->isEOF = true;
+			return EOF;
+		} else {
+		}
+		cr->in = in;
+		cr->index = 0;
+		cr->length = strlen(in);
+		if(cr->length > 0) {
+			add_history(in);
+			write_history(HISTFILE);
+		}
 	}
-	return EOF;
+	return cr->in[cr->index++];
 }
 
-static int reader_file(void *p) {
-	FILE *fp = (FILE *)p;
-	return fgetc(fp);
+static void runInteractive(Context *ctx) {
+	// init readline
+	read_history(HISTFILE);
+	// start
+	CharReader cr;
+	cr.in = NULL;
+	cr.isEOF = false;
+	while(true) {
+		compileAndRun(ctx, readChar, &cr);
+		if(cr.in != NULL) {
+			free(cr.in);
+			cr.in = NULL;
+		}
+		if(cr.isEOF) break;
+	}
 }
 
 //------------------------------------------------------
-#define HISTFILE "history"
-static void runInteractive(Context *ctx) {
-	read_history(HISTFILE);
-	while(true) {
-		char *in = readline(">>");
-		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
-			break;
-		}
-		add_history(in);
-		CharReader cr = { in, 0 };
-		compileAndRun(ctx, reader_char, &cr);
-		free(in);
-		write_history(HISTFILE);
-	}
+static int reader_file(void *p) {
+	FILE *fp = (FILE *)p;
+	return fgetc(fp);
 }
 
 static void runFromFile(Context *ctx, const char *filename) {
