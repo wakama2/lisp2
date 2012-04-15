@@ -7,7 +7,7 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func) {
 }
 
 void CodeBuilder::addInst(int inst) {
-	printf("%03d: %s\n", ci, ctx->getInstName(inst));
+	//printf("%03d: %s\n", ci, ctx->getInstName(inst));
 #ifdef USING_THCODE
 	code[ci++].ptr = ctx->getDTLabel(inst);
 #else

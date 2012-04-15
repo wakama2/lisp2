@@ -72,7 +72,7 @@ Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 			task->dest = dest;
 			task->stat = TASK_RUN;
 			memcpy(task->sp, args, func->argc * sizeof(Value));
-			return oldtop;
+			return task;
 		}
 	}
 	return NULL;

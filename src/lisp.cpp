@@ -68,6 +68,43 @@ static void runCons(Context *ctx, Cons *cons) {
 }
 
 //------------------------------------------------------
+static void runLisp(Context *ctx, Reader r, void *rp) {
+	Tokenizer tk(r, rp);
+	Cons *res;
+	while(!tk.isEof()) {
+		if(parseCons(&tk, &res)) {
+			res->cdr = NULL;
+			res->println();
+			runCons(ctx, res);
+		} else {
+			printf("error\n");
+			break;
+		}
+	}
+}
+
+//------------------------------------------------------
+struct CharReader {
+	const char *in;
+	int index;
+};
+
+static int reader_char(void *p) {
+	CharReader *cr = (CharReader *)p;
+	char ch = cr->in[cr->index];
+	if(ch) {
+		cr->index++;
+		return ch;
+	}
+	return EOF;
+}
+
+static int reader_file(void *p) {
+	FILE *fp = (FILE *)p;
+	return fgetc(fp);
+}
+
+//------------------------------------------------------
 #define HISTFILE ".history"
 static void runInteractive(Context *ctx) {
 	read_history(HISTFILE);
@@ -77,8 +114,8 @@ static void runInteractive(Context *ctx) {
 			break;
 		}
 		add_history(in);
-		Cons *c = parseExpr(in).value;
-		runCons(ctx, c);
+		CharReader cr = { in, 0 };
+		runLisp(ctx, reader_char, &cr);
 		free(in);
 		write_history(HISTFILE);
 	}
@@ -86,22 +123,12 @@ static void runInteractive(Context *ctx) {
 
 static void runFromFile(Context *ctx, const char *filename) {
 	FILE *fp = fopen(filename, "r");
-	if(fp == NULL) return;
-	char is[256];
-	int size = fread(is, 1, 256, fp);
-	fclose(fp);
-	is[size] = '\0';
-
-	const char *src = is;
-	while(true) {
-		ParseResult<Cons *> res = parseExpr(src);
-		if(res.success) {
-			src = res.src;
-			runCons(ctx, res.value);
-		} else {
-			break;
-		}
+	if(fp == NULL) {
+		fprintf(stderr, "file open error: %s\n", filename);
+		return;
 	}
+	runLisp(ctx, reader_file, fp);
+	fclose(fp);
 }
 
 //------------------------------------------------------

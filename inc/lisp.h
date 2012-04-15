@@ -177,14 +177,14 @@ public:
 //------------------------------------------------------
 // cons cell
 
-enum {
+enum ConsType {
 	CONS_INT,
 	CONS_STR,
 	CONS_CAR,
 };
 
 struct Cons {
-	int type;
+	ConsType type;
 	union {
 		int i;
 		const char *str;
@@ -192,6 +192,7 @@ struct Cons {
 	};
 	Cons *cdr;
 
+	Cons(ConsType type) { this->type = type; }
 	void print(FILE *fp = stdout);
 	void println(FILE *fp = stdout);
 };
@@ -199,22 +200,29 @@ struct Cons {
 //------------------------------------------------------
 // parser
 
-template <class T>
-struct ParseResult {
-	const char *src;
-	T value;
-	bool success;
+typedef int (*Reader)(void *p);
 
-	static ParseResult<T> make(const char *src, T value, bool success = true) {
-		ParseResult<T> r;
-		r.src = src;
-		r.value = value;
-		r.success = success;
-		return r;
-	}
+class Tokenizer {
+public:
+	Reader reader;
+	void *reader_p;
+	int nextch;
+	int ch;
+	int linenum;
+	int cnum;
+
+	int seek();
+
+public:
+	Tokenizer(Reader r, void *rp);
+
+	bool isIntToken(int *n);
+	bool isSymbol(char ch);
+	bool isStrToken(const char **);
+	bool isEof();
 };
 
-ParseResult<Cons *> parseExpr(const char *src);
+bool parseCons(Tokenizer *tk, Cons **res);
 
 //------------------------------------------------------
 // code generator

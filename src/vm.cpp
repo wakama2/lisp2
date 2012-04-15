@@ -25,7 +25,6 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 #endif
 	register Code *pc  = task->pc;
 	register Value *sp = task->sp;
-	Scheduler *sche = wth->sche;
 
 	SWITCHBEGIN;
 
@@ -91,6 +90,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(INS_SPAWN) {
+		Scheduler *sche = wth->sche;
 		Task *t = sche->newTask(pc[1].func, sp + pc[2].i, NULL);
 		sp[pc[2].i - 3].task = t;
 		if(t == NULL) {
@@ -108,6 +108,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(INS_JOIN) {
+		Scheduler *sche = wth->sche;
 		Task *t = sp[pc[1].i].task;
 		if(t != NULL) {
 			if(t->stat == TASK_RUN) {
@@ -148,10 +149,12 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 2;
 	} NEXT();
 
+#ifndef USING_THCODE
 	DEFAULT {
 		fprintf(stderr, "Error instruction!\n");
 		exit(1);
 	};
+#endif
 
 	SWITCHEND;
 }
