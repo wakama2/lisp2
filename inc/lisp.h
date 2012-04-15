@@ -8,7 +8,7 @@
 #define TASK_MAX   20 //(WORKER_MAX * 3)
 #define TASK_STACKSIZE 1024
 
-#define USING_THCODE
+//#define USING_THCODE
 
 //------------------------------------------------------
 // includes and structs
@@ -103,6 +103,7 @@ private:
 
 public:
 	Scheduler *sche;
+	bool flagShowIR;
 
 	Context();
 	~Context();

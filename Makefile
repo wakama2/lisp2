@@ -17,11 +17,11 @@ HEADERS = \
 OBJS = $(SRCS:.cpp=.o)
 
 $(TARGET): $(HEADERS) $(OBJS)
-	$(CC) $(CFLAGS) $(INCDIR) -o $@ $(OBJS) $(LIB)
+	$(CC) $(OBJS) -o $@ $(LIB) $(CFLAGS) $(INCDIR)
 
 .SUFFIXES: .cpp.o
 .cpp.o: $(HEADERS)
-	$(CPP) $(CFLAGS) $(INCDIR) -o $@ -c $< $(LIB)
+	$(CPP) $< -c -o $@ $(CFLAGS) $(INCDIR) 
 
 .PHONY: clean
 clean:

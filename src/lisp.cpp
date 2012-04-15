@@ -164,7 +164,12 @@ int main(int argc, char **argv) {
 	pthread_mutex_init(&g_lock, NULL);
 	pthread_cond_init(&g_cond, NULL);
 	if(argc >= 2) {
-		runFromFile(ctx, argv[1]);
+		int i = 1;
+		for(; i<argc; i++) {
+			if(strcmp(argv[i], "-i") == 0) ctx->flagShowIR = true;
+			else break;
+		}
+		runFromFile(ctx, argv[i]);
 	} else {
 		runInteractive(ctx);
 	}

@@ -51,10 +51,10 @@ static bool genIntTask(Cons *cons, CodeBuilder *cb, int sp) {
 		const char *name = cons->car->str;
 		Func *func = cb->ctx->getFunc(name);
 		assert(func != NULL);
-		if(func->code != NULL) {
+		//if(func->code != NULL) {
 			genSpawn(func, cons->car->cdr, cb, sp);
 			return true;
-		}
+		//}
 	}
 	genIntValue(cons, cb, sp);
 	return false;

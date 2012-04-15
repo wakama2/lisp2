@@ -4,6 +4,7 @@
 Context::Context() {
 	funclist = NULL;
 	varlist = NULL;
+	flagShowIR = false;
 #ifdef USING_THCODE
 	vmrun(this, NULL, NULL); // init jmptable
 #endif
