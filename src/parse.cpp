@@ -20,12 +20,22 @@ Tokenizer::Tokenizer(Reader r, void *rp) {
 	this->reader_p = rp;
 	this->linenum = 0;
 	this->cnum = 0;
-	seek();
-	seek();
+	this->ch = r(rp);
+	this->nextch = r(rp);
+	if(ch != EOF) {
+		linebuf[cnum++] = ch;
+	}
 }
 
 int Tokenizer::seek() {
 	ch = nextch;
+	if(ch == '\n') {
+		linenum++;
+		cnum = 0;
+	} else if(ch != EOF) {
+		linebuf[cnum] = ch;
+		cnum++;
+	}
 	nextch = reader(reader_p);
 	return ch;
 }
@@ -83,8 +93,19 @@ bool Tokenizer::isStrToken(const char **strp) {
 	return true;
 }
 
-static bool parseError(Tokenizer *tk) {
-	printf("parse error: line=%d ch=%d\n", tk->linenum, tk->cnum);
+void Tokenizer::printErrorMsg(const char *msg) {
+	fprintf(stderr, "parse error(line=%d): %s\n", linenum, msg);
+	linebuf[cnum] = '\0';
+	fprintf(stderr, "n = %d\n", cnum);
+	fprintf(stderr, "%s\n", linebuf);
+	for(int i=0; i<cnum; i++) {
+		fprintf(stderr, " ");
+	}
+	fprintf(stderr, "^\n");
+}
+
+static bool parseError(Tokenizer *tk, const char *msg) {
+	tk->printErrorMsg(msg);
 	return false;
 }
 
@@ -94,16 +115,16 @@ bool parseCons(Tokenizer *tk, Cons **res) {
 		if(parseCons(tk, &c->car)) {
 			Cons *cc = c->car;
 			while(!tk->isSymbol(')')) {
-				Cons *r;
-				if(parseCons(tk, &r)) {
-					cc->cdr = r;
-					cc = r;
+				if(parseCons(tk, &cc->cdr)) {
+					cc = cc->cdr;
 				} else {
-					return parseError(tk);
+					cons_free(c);
+					return false;
 				}
 			}
 		} else {
-			return parseError(tk);
+			cons_free(c);
+			return false;
 		}
 		*res = c;
 		return true;
@@ -122,6 +143,6 @@ bool parseCons(Tokenizer *tk, Cons **res) {
 		*res = c;
 		return true;
 	}
-	return parseError(tk);
+	return parseError(tk, "require \")\"");
 }
 

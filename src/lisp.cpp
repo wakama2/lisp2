@@ -3,27 +3,35 @@
 #include <readline/history.h>
 
 //------------------------------------------------------
-void Cons::print(FILE *fp) {
+void cons_free(Cons *cons) {
+	if(cons->type == CONS_CAR && cons->car != NULL) {
+		cons_free(cons->car);
+	}
+	if(cons->cdr != NULL) {
+		cons_free(cons->cdr);
+	}
+	delete cons;
+}
+
+void cons_print(Cons *cons, FILE *fp) {
 	bool b = false;
-	Cons *self = this;
-	while(self != NULL) {
+	for(; cons != NULL; cons = cons->cdr) {
 		if(b) printf(" ");
 		b = true;
-		switch(self->type) {
-		case CONS_INT: printf("%d", self->i); break;
-		case CONS_STR: printf("%s", self->str); break;
+		switch(cons->type) {
+		case CONS_INT: printf("%d", cons->i); break;
+		case CONS_STR: printf("%s", cons->str); break;
 		case CONS_CAR:
 			fprintf(fp, "(");
-			self->car->print(fp);
+			cons_print(cons->car, fp);
 			fprintf(fp, ")");
 			break;
 		}
-		self = self->cdr;
 	}
 }
 
-void Cons::println(FILE *fp) {
-	this->print(fp);
+void cons_println(Cons *cons, FILE *fp) {
+	cons_print(cons, fp);
 	fprintf(fp, "\n");
 }
 
@@ -31,7 +39,7 @@ void Cons::println(FILE *fp) {
 static pthread_mutex_t g_lock;
 static pthread_cond_t  g_cond;
 
-static void end_script(Task *task, WorkerThread *wth) {
+static void notify_runCons(Task *task, WorkerThread *wth) {
 	pthread_mutex_lock(&g_lock);
 	pthread_cond_signal(&g_cond);
 	pthread_mutex_unlock(&g_lock);
@@ -39,13 +47,6 @@ static void end_script(Task *task, WorkerThread *wth) {
 
 //------------------------------------------------------
 static void runCons(Context *ctx, Cons *cons) {
-	if(cons->type == CONS_CAR) {
-		for(; cons != NULL; cons = cons->cdr) {
-			cons->println();
-			runCons(ctx, cons->car);
-		}
-		return;
-	}
 	Func *func = new Func();
 	func->name = "__script";
 	func->argc = 0;
@@ -55,7 +56,7 @@ static void runCons(Context *ctx, Cons *cons) {
 	cb->accept(func);
 
 	Scheduler *sche = ctx->sche;
-	Task *task = sche->newTask(func, NULL, end_script);
+	Task *task = sche->newTask(func, NULL, notify_runCons);
 	assert(task != NULL);
 	pthread_mutex_lock(&g_lock);
 	sche->enqueue(task);
@@ -74,10 +75,10 @@ static void runLisp(Context *ctx, Reader r, void *rp) {
 	while(!tk.isEof()) {
 		if(parseCons(&tk, &res)) {
 			res->cdr = NULL;
-			res->println();
+			cons_println(res);
 			runCons(ctx, res);
+			cons_free(res);
 		} else {
-			printf("error\n");
 			break;
 		}
 	}
@@ -105,7 +106,7 @@ static int reader_file(void *p) {
 }
 
 //------------------------------------------------------
-#define HISTFILE ".history"
+#define HISTFILE "history"
 static void runInteractive(Context *ctx) {
 	read_history(HISTFILE);
 	while(true) {

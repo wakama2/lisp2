@@ -99,6 +99,7 @@ class Context {
 private:
 	Func *funclist;
 	Variable *varlist;
+
 public:
 #ifdef USING_THCODE
 	void *jmptable[256];
@@ -192,10 +193,12 @@ struct Cons {
 	};
 	Cons *cdr;
 
-	Cons(ConsType type) { this->type = type; }
-	void print(FILE *fp = stdout);
-	void println(FILE *fp = stdout);
+	Cons(ConsType type) { this->type = type; cdr = NULL; }
 };
+
+void cons_free(Cons *cons);
+void cons_print(Cons *cons, FILE *fp = stdout);
+void cons_println(Cons *cons, FILE *fp = stdout);
 
 //------------------------------------------------------
 // parser
@@ -203,13 +206,14 @@ struct Cons {
 typedef int (*Reader)(void *p);
 
 class Tokenizer {
-public:
+private:
 	Reader reader;
 	void *reader_p;
 	int nextch;
 	int ch;
 	int linenum;
 	int cnum;
+	char linebuf[256];
 
 	int seek();
 
@@ -220,6 +224,8 @@ public:
 	bool isSymbol(char ch);
 	bool isStrToken(const char **);
 	bool isEof();
+
+	void printErrorMsg(const char *msg);
 };
 
 bool parseCons(Tokenizer *tk, Cons **res);
