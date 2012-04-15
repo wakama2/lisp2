@@ -44,6 +44,7 @@ enum {
 #define I(a) a,
 #include "inst"
 #undef I
+	INS_COUNT,
 };
 
 struct Code {
@@ -80,7 +81,7 @@ typedef void (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
 struct Func {
 	const char *name;
 	int argc;
-	const char *args[64];
+	const char **args;
 	Code *code;
 	CodeGenFunc codegen;
 	Func *next;
@@ -101,9 +102,6 @@ private:
 	Variable *varlist;
 
 public:
-#ifdef USING_THCODE
-	void *jmptable[256];
-#endif
 	Scheduler *sche;
 
 	Context();
@@ -112,7 +110,10 @@ public:
 	Func *getFunc(const char *name);
 	void putVar(Variable *var);
 	Variable *getVar(const char *name);
+#ifdef USING_THCODE
+	void *jmptable[INS_COUNT];
 	void *getDTLabel(int ins); /* direct threaded code label */
+#endif
 	const char *getInstName(int ins);
 };
 
@@ -163,12 +164,13 @@ private:
 	Task *taskpool;
 	Task *freelist;
 	Task dummyTask;
-
+	volatile bool dead_flag;
 	WorkerThread *wthpool;
 
 public:
 	Context *ctx;
 	Scheduler(Context *ctx);
+	~Scheduler();
 	void enqueue(Task *task);
 	Task *dequeue();
 	Task *newTask(Func *func, Value *args, TaskMethod dest);

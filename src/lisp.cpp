@@ -4,8 +4,10 @@
 
 //------------------------------------------------------
 void cons_free(Cons *cons) {
-	if(cons->type == CONS_CAR && cons->car != NULL) {
+	if(cons->type == CONS_CAR) {
 		cons_free(cons->car);
+	} else if(cons->type == CONS_STR) {
+		delete [] cons->str;
 	}
 	if(cons->cdr != NULL) {
 		cons_free(cons->cdr);
@@ -65,11 +67,13 @@ static void runCons(Context *ctx, Cons *cons) {
 
 	printf("%d\n", task->stack[0].i);
 	sche->deleteTask(task);
+	delete [] func->code;
+	delete func;
 	delete cb;
 }
 
 //------------------------------------------------------
-static void runLisp(Context *ctx, Reader r, void *rp) {
+static void compileAndRun(Context *ctx, Reader r, void *rp) {
 	Tokenizer tk(r, rp);
 	Cons *res;
 	while(!tk.isEof()) {
@@ -116,7 +120,7 @@ static void runInteractive(Context *ctx) {
 		}
 		add_history(in);
 		CharReader cr = { in, 0 };
-		runLisp(ctx, reader_char, &cr);
+		compileAndRun(ctx, reader_char, &cr);
 		free(in);
 		write_history(HISTFILE);
 	}
@@ -128,14 +132,13 @@ static void runFromFile(Context *ctx, const char *filename) {
 		fprintf(stderr, "file open error: %s\n", filename);
 		return;
 	}
-	runLisp(ctx, reader_file, fp);
+	compileAndRun(ctx, reader_file, fp);
 	fclose(fp);
 }
 
 //------------------------------------------------------
 int main(int argc, char **argv) {
 	Context *ctx = new Context();
-	ctx->sche = new Scheduler(ctx);
 	pthread_mutex_init(&g_lock, NULL);
 	pthread_cond_init(&g_cond, NULL);
 	if(argc >= 2) {

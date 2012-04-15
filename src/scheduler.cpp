@@ -5,6 +5,7 @@ static void *WorkerThread_main(void *arg) {
 	Scheduler *sche = wth->sche;
 	while(true) {
 		Task *task = sche->dequeue();
+		if(task == NULL) return NULL;
 		assert(task != NULL && task->stat == TASK_RUN);
 		vmrun(sche->ctx, wth, task);
 	}
@@ -17,6 +18,7 @@ Scheduler::Scheduler(Context *ctx) {
 	tl_head = tl_tail = &dummyTask;
 	pthread_mutex_init(&tl_lock, NULL);
 	pthread_cond_init(&tl_cond, NULL);
+	this->dead_flag = false;
 
 	// init task list
 	taskpool = new Task[TASK_MAX];
@@ -24,7 +26,7 @@ Scheduler::Scheduler(Context *ctx) {
 	for(int i=0; i<TASK_MAX; i++) {
 		taskpool[i].next = &taskpool[i+1];
 	}
-	taskpool[TASK_MAX + 1].next = NULL;
+	taskpool[TASK_MAX - 1].next = NULL;
 
 	// start worker threads
 	wthpool = new WorkerThread[WORKER_MAX];
@@ -35,6 +37,20 @@ Scheduler::Scheduler(Context *ctx) {
 		wth->id = i;
 		pthread_create(&wth->pth, NULL, WorkerThread_main, wth);
 	}
+}
+
+Scheduler::~Scheduler() {
+	pthread_mutex_lock(&tl_lock);
+	dead_flag = true;
+	pthread_cond_broadcast(&tl_cond);
+	pthread_mutex_unlock(&tl_lock);
+	for(int i=0; i<WORKER_MAX; i++) {
+		WorkerThread *wth = &wthpool[i];
+		pthread_join(wth->pth, NULL);
+		pthread_detach(wth->pth);
+	}
+	delete [] wthpool;
+	delete [] taskpool;
 }
 
 //------------------------------------------------------
@@ -50,6 +66,10 @@ void Scheduler::enqueue(Task *task) {
 Task *Scheduler::dequeue() {
 	pthread_mutex_lock(&tl_lock);
 	while(tl_head->next == NULL) {
+		if(dead_flag) {
+			pthread_mutex_unlock(&tl_lock);
+			return NULL;
+		}
 		pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
 	}
 	Task *task = tl_head->next;

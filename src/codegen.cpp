@@ -156,13 +156,25 @@ static void genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	cb->setLabel(merge);
 }
 
-static Func *newFunc(const char *name, Cons *args, 
-		void (*gen)(Func *self, Cons *src, CodeBuilder *cb, int sp)) {
-	Func *f = new Func();
-	f->name = name;
-	f->argc = 0;
+static const char *newStr(const char *ss) {
+	int len = strlen(ss);
+	char *s = new char[len + 1];
+	strcpy(s, ss);
+	return s;
+}
+
+static Func *newFunc(const char *name, Cons *args, CodeGenFunc gen) {
+	int argc = 0;
 	for(Cons *c=args; c!=NULL; c=c->cdr) {
-		f->args[f->argc++] = c->str;
+		argc++;
+	}
+	Func *f = new Func();
+	f->name = newStr(name);
+	f->argc = argc;
+	f->args = argc != 0 ? new const char *[argc] : NULL;
+	int i = 0;
+	for(Cons *c=args; c!=NULL; c=c->cdr) {
+		f->args[i++] = newStr(c->str);
 	}
 	f->code = NULL;
 	f->codegen = gen;
@@ -196,7 +208,7 @@ static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Cons *expr = cons;
 
 	Variable *v = new Variable();
-	v->name = name;
+	v->name = newStr(name);
 	v->value.i = 0;
 	cb->ctx->putVar(v);
 
