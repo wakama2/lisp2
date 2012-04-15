@@ -259,6 +259,8 @@ public:
 	void createIMul(int r, int a) { createOp(INS_IMUL, r, a); }
 	void createIDiv(int r, int a) { createOp(INS_IDIV, r, a); }
 	void createIMod(int r, int a) { createOp(INS_IMOD, r, a); }
+	void createIAddC(int r, int a) { createOp(INS_IADDC, r, a); }
+	void createISubC(int r, int a) { createOp(INS_ISUBC, r, a); }
 	void createINeg(int r);
 	void createLoadGlobal(Variable *var, int r);
 	void createStoreGlobal(Variable *var, int r);

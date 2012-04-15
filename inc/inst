@@ -8,6 +8,9 @@ I(INS_ISUB)
 I(INS_IMUL)
 I(INS_IDIV)
 I(INS_IMOD)
+// [r1] += r2
+I(INS_IADDC)
+I(INS_ISUBC)
 // [r1] *= -1
 I(INS_INEG)
 // jmp pc+[r1] if [r1] < [r2]

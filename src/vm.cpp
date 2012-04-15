@@ -50,6 +50,15 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	CASE_IOP(INS_IDIV, /=);
 	CASE_IOP(INS_IMOD, %=);
 
+#define CASE_IOPC(ins, op) \
+	CASE(ins) { \
+		sp[pc[1].i].i op pc[2].i;\
+		pc += 3; \
+	} NEXT();
+		
+	CASE_IOPC(INS_IADDC, +=);
+	CASE_IOPC(INS_ISUBC, -=);
+	
 	CASE(INS_INEG) {
 		sp[pc[1].i].i = -sp[pc[1].i].i;
 		pc += 2;

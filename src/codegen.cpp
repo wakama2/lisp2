@@ -65,13 +65,17 @@ static void genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	bool tf = genIntTask(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		int sft = tf ? 3 : 1;
-		genIntValue(cons, cb, sp + sft);
-		if(tf) {
-			cb->createJoin(sp);
-			tf = false;
+		if(cons->type == CONS_INT) {
+			cb->createIAddC(sp, cons->i);
+		} else {
+			int sft = tf ? 3 : 1;
+			genIntValue(cons, cb, sp + sft);
+			if(tf) {
+				cb->createJoin(sp);
+				tf = false;
+			}
+			cb->createIAdd(sp, sp + sft);
 		}
-		cb->createIAdd(sp, sp + sft);
 	}
 }
 
@@ -84,8 +88,12 @@ static void genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		return;
 	}
 	for(; cons != NULL; cons = cons->cdr) {
-		genIntValue(cons, cb, sp + 1);
-		cb->createISub(sp, sp + 1);
+		if(cons->type == CONS_INT) {
+			cb->createISubC(sp, cons->i);
+		} else {
+			genIntValue(cons, cb, sp + 1);
+			cb->createISub(sp, sp + 1);
+		}
 	}
 }
 
