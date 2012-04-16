@@ -14,8 +14,9 @@ static void *WorkerThread_main(void *arg) {
 //------------------------------------------------------
 Scheduler::Scheduler(Context *ctx) {
 	this->ctx = ctx;
-	dummyTask.next = NULL;
-	tl_head = tl_tail = &dummyTask;
+	this->taskq = new Task *[TASKQUEUE_MAX];
+	this->taskEnqIndex = 0;
+	this->taskDeqIndex = 0;
 	pthread_mutex_init(&tl_lock, NULL);
 	pthread_cond_init(&tl_cond, NULL);
 	this->dead_flag = false;
@@ -51,34 +52,35 @@ Scheduler::~Scheduler() {
 	}
 	delete [] wthpool;
 	delete [] taskpool;
+	delete [] taskq;
 }
 
 //------------------------------------------------------
 void Scheduler::enqueue(Task *task) {
-	task->next = NULL;
 	pthread_mutex_lock(&tl_lock);
-	tl_tail->next = task;
-	tl_tail = task;
+	//int n = ATOMIC_ADD(taskEnqIndex, 1);
+	int n = taskEnqIndex++ & (TASKQUEUE_MAX - 1);
+	taskq[n] = task;
 	pthread_cond_signal(&tl_cond); /* notify a thread in dequeue */
 	pthread_mutex_unlock(&tl_lock);
 }
 
 Task *Scheduler::dequeue() {
 	pthread_mutex_lock(&tl_lock);
-	while(tl_head->next == NULL) {
+	while(taskEnqIndex == taskDeqIndex) {
 		if(dead_flag) {
 			pthread_mutex_unlock(&tl_lock);
 			return NULL;
 		}
 		pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
 	}
-	Task *task = tl_head->next;
-	tl_head->next = task->next;
-	if(task->next == NULL) tl_tail = tl_head;
+	//int n = ATOMIC_SUB(taskDeqIndex, 1);
+	int n = (taskDeqIndex++) & (TASKQUEUE_MAX - 1);
+	Task *task = taskq[n];
 	pthread_mutex_unlock(&tl_lock);
 	return task;
 }
-
+	
 //------------------------------------------------------
 Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 	Task *oldtop = freelist;

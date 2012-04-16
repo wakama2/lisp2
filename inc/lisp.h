@@ -6,9 +6,10 @@
 
 #define WORKER_MAX 8
 #define TASK_MAX   (WORKER_MAX * 3 / 2)
+#define TASKQUEUE_MAX   32 /* must be 2^n */
 #define TASK_STACKSIZE 1024
 
-//#define USING_THCODE
+#define USING_THCODE
 
 //------------------------------------------------------
 // includes and structs
@@ -159,13 +160,13 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 
 class Scheduler {
 private:
-	Task *tl_head;
-	Task *tl_tail;
+	Task **taskq;
+	int taskEnqIndex;
+	int taskDeqIndex;
 	pthread_mutex_t tl_lock;
 	pthread_cond_t  tl_cond;
 	Task *taskpool;
 	Task *freelist;
-	Task dummyTask;
 	volatile bool dead_flag;
 	WorkerThread *wthpool;
 
