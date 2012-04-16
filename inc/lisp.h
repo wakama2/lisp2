@@ -4,8 +4,8 @@
 //------------------------------------------------------
 // configuration
 
-#define WORKER_MAX 9
-#define TASK_MAX   20 //(WORKER_MAX * 3)
+#define WORKER_MAX 8
+#define TASK_MAX   (WORKER_MAX * 3 / 2)
 #define TASK_STACKSIZE 1024
 
 //#define USING_THCODE
