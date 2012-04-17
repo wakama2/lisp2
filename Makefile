@@ -2,6 +2,7 @@ CC = g++
 CPP = g++
 TARGET=lisp
 CFLAGS = -O2 -g3 -Wall
+#CFLAGS = -O0 -g3 -pg -Wall
 INCDIR = -Iinc
 LIB = -lreadline -lpthread
 SRCS = \

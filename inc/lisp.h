@@ -81,17 +81,17 @@ enum ValueType {
 typedef void (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
 
 struct Func {
+	Code *code;
 	const char *name;
 	int argc;
 	const char **args;
-	Code *code;
 	CodeGenFunc codegen;
 	Func *next;
 };
 
 struct Variable {
-	const char *name;
 	Value value;
+	const char *name;
 	Variable *next;
 };
 
