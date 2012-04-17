@@ -14,6 +14,8 @@
 # define DEFAULT		 default:
 #endif
 
+static void do_nothing(Task *task, WorkerThread *wth) {}
+
 void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 #ifdef USING_THCODE
 	if(wth == NULL) {
@@ -100,7 +102,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 
 	CASE(INS_SPAWN) {
 		Scheduler *sche = wth->sche;
-		Task *t = sche->newTask(pc[1].func, sp + pc[2].i, NULL);
+		Task *t = sche->newTask(pc[1].func, sp + pc[2].i, do_nothing);
 		sp[pc[2].i - 3].task = t;
 		if(t == NULL) {
 			// INS_CALL
@@ -118,7 +120,8 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 
 	CASE(INS_JOIN) {
 		Scheduler *sche = wth->sche;
-		Task *t = sp[pc[1].i].task;
+		register int res = pc[1].i;
+		Task *t = sp[res].task;
 		if(t != NULL) {
 			if(t->stat == TASK_RUN) {
 				task->pc = pc;
@@ -126,24 +129,24 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 				sche->enqueue(task);
 				return;
 			} else {
-				sp[pc[1].i] = t->stack[0];
+				sp[res] = t->stack[0];
 				sche->deleteTask(t);
 			}
 		} else {
-			sp[pc[1].i] = sp[pc[1].i + 1];
+			sp[res] = sp[res + 1];
 		}
 		pc += 2;
 	} NEXT();
 
 	CASE(INS_RET) {
 		if(sp != task->stack) {
-			Value *sp2 = sp[-2].sp;
+			register Value *sp2 = sp[-2].sp;
 			sp[-2] = sp[0];
 			pc = sp[-1].pc;
 			sp = sp2;
 		} else {
 			task->stat = TASK_END;
-			if(task->dest != NULL) task->dest(task, wth);
+			task->dest(task, wth);
 			return;
 		}
 	} NEXT();

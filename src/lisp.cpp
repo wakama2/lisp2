@@ -55,7 +55,7 @@ static void runCons(Context *ctx, Cons *cons) {
 	CodeBuilder *cb = new CodeBuilder(ctx, func);
 	cb->codegen(cons, 0);
 	cb->createRet();
-	cb->accept(func);
+	func->code = cb->getCode();
 
 	Scheduler *sche = ctx->sche;
 	Task *task = sche->newTask(func, NULL, notify_runCons);

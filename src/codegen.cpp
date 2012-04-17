@@ -235,7 +235,7 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *_cb, int sp) {
 	CodeBuilder cb(_cb->ctx, func);
 	cb.codegen(cons, func->argc);
 	cb.createRet();
-	cb.accept(func);
+	func->code = cb.getCode();
 }
 
 void addDefaultFuncs(Context *ctx) {

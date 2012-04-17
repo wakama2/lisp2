@@ -17,18 +17,9 @@ void CodeBuilder::addInst(int inst) {
 #endif
 }
 
-void CodeBuilder::addInt(int n) {
-	//printf("%d\n", n);
-	code[ci++].i = n;
-}
-
-void CodeBuilder::addFunc(Func *func) {
-	code[ci++].func = func;
-}
-
-void CodeBuilder::addVar(Variable *var) {
-	code[ci++].var = var;
-}
+#define addInt(n)     code[ci++].i = n;
+#define addFunc(func) code[ci++].func = func;
+#define addVar(var)   code[ci++].var = var;
 
 void CodeBuilder::createIConst(int r, int i) {
 	addInst(INS_ICONST);
@@ -109,10 +100,10 @@ void CodeBuilder::setLabel(int n) {
 	code[n + 1].i = ci - n;
 }
 
-void CodeBuilder::accept(Func *func) {
+Code *CodeBuilder::getCode() {
 	Code *c = new Code[ci];
 	memcpy(c, code, sizeof(Code) * ci);
-	func->code = c;
+	return c;
 }
 
 void CodeBuilder::codegen(Cons *cons, int sp) {

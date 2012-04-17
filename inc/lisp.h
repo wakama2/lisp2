@@ -35,9 +35,9 @@ class CodeBuilder;
 //------------------------------------------------------
 // atomic function
 
-#define ATOMIC_ADD(p, v) __sync_fetch_and_add(p, v)
-#define ATOMIC_SUB(p, v) __sync_fetch_and_sub(p, v)
-#define CAS(a, ov, nv) __sync_bool_compare_and_swap(&a, ov, nv)
+#define ATOMIC_ADD(p, v) __sync_fetch_and_add(&(p), v)
+#define ATOMIC_SUB(p, v) __sync_fetch_and_sub(&(p), v)
+#define CAS(a, ov, nv) __sync_bool_compare_and_swap(&(a), ov, nv)
 
 //------------------------------------------------------
 // instruction, code, value
@@ -67,12 +67,6 @@ struct Value {
 		Code *pc;
 		Value *sp;
 	};
-};
-
-enum ValueType {
-	VT_INT,
-	VT_TNIL,
-	VT_FUTURE,
 };
 
 //------------------------------------------------------
@@ -133,10 +127,8 @@ enum TaskStat {
 };
 
 struct Task {
-	// task info
 	volatile TaskStat stat;
 	Task *next;
-	// exec info
 	Code  *pc;
 	Value *sp;
 	TaskMethod dest;
@@ -243,9 +235,6 @@ private:
 	Code code[256];
 	int ci;
 	void addInst(int inst);
-	void addInt(int n);
-	void addFunc(Func *func);
-	void addVar(Variable *var);
 
 public:
 	Context *ctx;
@@ -273,7 +262,7 @@ public:
 	int createJmp();
 	void setLabel(int n);
 
-	void accept(Func *func);
+	Code *getCode();
 	void codegen(Cons *cons, int sp);
 };
 

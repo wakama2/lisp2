@@ -3,12 +3,12 @@
 static void *WorkerThread_main(void *arg) {
 	WorkerThread *wth = (WorkerThread *)arg;
 	Scheduler *sche = wth->sche;
-	while(true) {
-		Task *task = sche->dequeue();
-		if(task == NULL) return NULL;
-		assert(task != NULL && task->stat == TASK_RUN);
+	Task *task;
+	while((task = sche->dequeue()) != NULL) {
+		assert(task->stat == TASK_RUN);
 		vmrun(sche->ctx, wth, task);
 	}
+	return NULL;
 }
 
 //------------------------------------------------------
@@ -17,9 +17,9 @@ Scheduler::Scheduler(Context *ctx) {
 	this->taskq = new Task *[TASKQUEUE_MAX];
 	this->taskEnqIndex = 0;
 	this->taskDeqIndex = 0;
+	this->dead_flag = false;
 	pthread_mutex_init(&tl_lock, NULL);
 	pthread_cond_init(&tl_cond, NULL);
-	this->dead_flag = false;
 
 	// init task list
 	taskpool = new Task[TASK_MAX];
@@ -58,7 +58,6 @@ Scheduler::~Scheduler() {
 //------------------------------------------------------
 void Scheduler::enqueue(Task *task) {
 	pthread_mutex_lock(&tl_lock);
-	//int n = ATOMIC_ADD(taskEnqIndex, 1);
 	int n = taskEnqIndex++ & (TASKQUEUE_MAX - 1);
 	taskq[n] = task;
 	pthread_cond_signal(&tl_cond); /* notify a thread in dequeue */
@@ -66,17 +65,17 @@ void Scheduler::enqueue(Task *task) {
 }
 
 Task *Scheduler::dequeue() {
+	Task *task = NULL;
 	pthread_mutex_lock(&tl_lock);
-	while(taskEnqIndex == taskDeqIndex) {
-		if(dead_flag) {
-			pthread_mutex_unlock(&tl_lock);
-			return NULL;
+	{
+		while(taskEnqIndex == taskDeqIndex) {
+			if(dead_flag) goto L_FINAL;
+			pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
 		}
-		pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
+		int n = (taskDeqIndex++) & (TASKQUEUE_MAX - 1);
+		task = taskq[n];
 	}
-	//int n = ATOMIC_SUB(taskDeqIndex, 1);
-	int n = (taskDeqIndex++) & (TASKQUEUE_MAX - 1);
-	Task *task = taskq[n];
+L_FINAL:
 	pthread_mutex_unlock(&tl_lock);
 	return task;
 }
