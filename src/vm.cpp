@@ -25,6 +25,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		return;
 	}
 #endif
+	assert(task->stat == TASK_RUN);
 	register Code *pc  = task->pc;
 	register Value *sp = task->sp;
 
@@ -113,7 +114,8 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 			pc = pc[1].func->code;
 		} else {
 			// spawn
-			sche->enqueue(t);
+			//sche->enqueue(t);
+			enqueue(wth, t);
 			pc += 4;
 		}
 	} NEXT();
@@ -126,7 +128,8 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 			if(t->stat == TASK_RUN) {
 				task->pc = pc;
 				task->sp = sp;
-				sche->enqueue(task);
+				//sche->enqueue(task);
+				enqueue(wth, task);
 				return;
 			} else {
 				sp[res] = t->stack[0];

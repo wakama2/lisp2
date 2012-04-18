@@ -138,12 +138,29 @@ struct Task {
 //------------------------------------------------------
 // worker thread
 
+union Stamp {
+	int32_t i32;
+	struct {
+		int16_t i;
+		int16_t stamp;
+	};
+};
+
+#define QUEUE_MAX 1024
+
 struct WorkerThread {
 	Context *ctx;
 	Scheduler *sche;
 	int id;
+	Task *tasks[QUEUE_MAX];
+	volatile int bottom;
+	Stamp top;
 	pthread_t pth;
 };
+
+void enqueue(WorkerThread *wth, Task *task);
+Task *dequeueTop(WorkerThread *wth);
+Task *dequeueBottom(WorkerThread *wth);
 
 void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 
@@ -152,22 +169,19 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 
 class Scheduler {
 private:
-	Task **taskq;
-	int taskEnqIndex;
-	int taskDeqIndex;
 	pthread_mutex_t tl_lock;
 	pthread_cond_t  tl_cond;
 	Task *taskpool;
 	Task *freelist;
+public:
 	volatile bool dead_flag;
 	WorkerThread *wthpool;
 
-public:
 	Context *ctx;
 	Scheduler(Context *ctx);
 	~Scheduler();
-	void enqueue(Task *task);
-	Task *dequeue();
+	//void enqueue(Task *task);
+	//Task *dequeue();
 	Task *newTask(Func *func, Value *args, TaskMethod dest);
 	void deleteTask(Task *task);
 };

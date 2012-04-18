@@ -3,10 +3,16 @@
 static void *WorkerThread_main(void *arg) {
 	WorkerThread *wth = (WorkerThread *)arg;
 	Scheduler *sche = wth->sche;
+	int id = wth->id;
 	Task *task;
-	while((task = sche->dequeue()) != NULL) {
-		assert(task->stat == TASK_RUN);
-		vmrun(sche->ctx, wth, task);
+
+	while(!sche->dead_flag) {
+		task = dequeueTop(wth);
+		if(task != NULL) {
+			vmrun(sche->ctx, wth, task);
+		} else {
+
+		}
 	}
 	return NULL;
 }
@@ -14,9 +20,6 @@ static void *WorkerThread_main(void *arg) {
 //------------------------------------------------------
 Scheduler::Scheduler(Context *ctx) {
 	this->ctx = ctx;
-	this->taskq = new Task *[TASKQUEUE_MAX];
-	this->taskEnqIndex = 0;
-	this->taskDeqIndex = 0;
 	this->dead_flag = false;
 	pthread_mutex_init(&tl_lock, NULL);
 	pthread_cond_init(&tl_cond, NULL);
@@ -36,6 +39,8 @@ Scheduler::Scheduler(Context *ctx) {
 		wth->ctx = ctx;
 		wth->sche = this;
 		wth->id = i;
+		wth->bottom = 0;
+		wth->top.i32 = 0;
 		pthread_create(&wth->pth, NULL, WorkerThread_main, wth);
 	}
 }
@@ -52,32 +57,76 @@ Scheduler::~Scheduler() {
 	}
 	delete [] wthpool;
 	delete [] taskpool;
-	delete [] taskq;
 }
 
 //------------------------------------------------------
-void Scheduler::enqueue(Task *task) {
-	pthread_mutex_lock(&tl_lock);
-	int n = taskEnqIndex++ & (TASKQUEUE_MAX - 1);
-	taskq[n] = task;
-	pthread_cond_signal(&tl_cond); /* notify a thread in dequeue */
-	pthread_mutex_unlock(&tl_lock);
+//void Scheduler::enqueue(Task *task) {
+//	pthread_mutex_lock(&tl_lock);
+//	int n = taskEnqIndex++ & (TASKQUEUE_MAX - 1);
+//	taskq[n] = task;
+//	pthread_cond_signal(&tl_cond); /* notify a thread in dequeue */
+//	pthread_mutex_unlock(&tl_lock);
+//}
+//
+//Task *Scheduler::dequeue() {
+//	Task *task = NULL;
+//	pthread_mutex_lock(&tl_lock);
+//	{
+//		while(taskEnqIndex == taskDeqIndex) {
+//			if(dead_flag) goto L_FINAL;
+//			pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
+//		}
+//		int n = (taskDeqIndex++) & (TASKQUEUE_MAX - 1);
+//		task = taskq[n];
+//	}
+//L_FINAL:
+//	pthread_mutex_unlock(&tl_lock);
+//	return task;
+//}
+
+void enqueue(WorkerThread *wth, Task *task) {
+	int n = wth->bottom;
+	wth->tasks[n] = task;
+	wth->bottom++;
+	assert(wth->bottom < QUEUE_MAX);
 }
 
-Task *Scheduler::dequeue() {
-	Task *task = NULL;
-	pthread_mutex_lock(&tl_lock);
-	{
-		while(taskEnqIndex == taskDeqIndex) {
-			if(dead_flag) goto L_FINAL;
-			pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
-		}
-		int n = (taskDeqIndex++) & (TASKQUEUE_MAX - 1);
-		task = taskq[n];
+Task *dequeueTop(WorkerThread *wth) {
+	Stamp old = wth->top;
+
+	int oldTop = old.i, newTop = oldTop + 1;
+	int oldStamp = old.stamp, newStamp = oldStamp + 1;
+	if(wth->bottom <= oldTop) return NULL;
+	Task *task = wth->tasks[oldTop];
+
+	Stamp newst;
+	newst.i = newTop;
+	newst.stamp = newStamp;
+	if(CAS(wth->top.i32, old.i32, newst.i32)) {
+		return task;
 	}
-L_FINAL:
-	pthread_mutex_unlock(&tl_lock);
-	return task;
+	return NULL;
+}
+
+Task *dequeueBottom(WorkerThread *wth) {
+	if(wth->bottom == 0) return NULL;
+	wth->bottom--;
+	Task *task = wth->tasks[wth->bottom];
+	
+	Stamp old = wth->top;
+	int oldTop = old.i, newTop = oldTop + 1;
+	int oldStamp = old.stamp, newStamp = oldStamp + 1;
+	if(wth->bottom > oldTop) return task;
+	Stamp newst;
+	newst.i = newTop;
+	newst.stamp = newStamp;
+	if(wth->bottom == oldTop) {
+		wth->bottom = 0;
+		if(CAS(wth->top.i32, old.i32, newst.i32)) {
+			return task;
+		}
+	}
+	wth->top.i32 = newst.i32;
 }
 	
 //------------------------------------------------------

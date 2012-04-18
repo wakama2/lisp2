@@ -61,7 +61,8 @@ static void runCons(Context *ctx, Cons *cons) {
 	Task *task = sche->newTask(func, NULL, notify_runCons);
 	assert(task != NULL);
 	pthread_mutex_lock(&g_lock);
-	sche->enqueue(task);
+	//sche->enqueue(task);
+	enqueue(&sche->wthpool[0], task);
 	pthread_cond_wait(&g_cond, &g_lock);
 	pthread_mutex_unlock(&g_lock);
 
