@@ -5,8 +5,7 @@
 // configuration
 
 #define WORKER_MAX 8
-#define TASK_MAX   (WORKER_MAX * 3 / 2)
-#define TASKQUEUE_MAX   32 /* must be 2^n */
+#define TASK_MAX   1024//(WORKER_MAX * 3 / 2)
 #define TASK_STACKSIZE 1024
 
 #define USING_THCODE
@@ -139,14 +138,14 @@ struct Task {
 // worker thread
 
 union Stamp {
-	int32_t i32;
+	volatile int32_t i32;
 	struct {
-		int16_t i;
-		int16_t stamp;
+		volatile int16_t i;
+		volatile int16_t stamp;
 	};
 };
 
-#define QUEUE_MAX 1024
+#define QUEUE_MAX 64
 
 struct WorkerThread {
 	Context *ctx;
@@ -156,11 +155,14 @@ struct WorkerThread {
 	volatile int bottom;
 	Stamp top;
 	pthread_t pth;
+
+	bool joinwait;
 };
 
 void enqueue(WorkerThread *wth, Task *task);
 Task *dequeueTop(WorkerThread *wth);
 Task *dequeueBottom(WorkerThread *wth);
+bool isEmpty(WorkerThread *wth);
 
 void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 

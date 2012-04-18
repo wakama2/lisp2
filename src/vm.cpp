@@ -26,6 +26,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	}
 #endif
 	assert(task->stat == TASK_RUN);
+	printf("id=%d task=%d\n", wth->id, task->sp[0]);
 	register Code *pc  = task->pc;
 	register Value *sp = task->sp;
 
@@ -130,6 +131,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 				task->sp = sp;
 				//sche->enqueue(task);
 				enqueue(wth, task);
+				wth->joinwait = true;
 				return;
 			} else {
 				sp[res] = t->stack[0];

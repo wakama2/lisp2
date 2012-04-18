@@ -3,15 +3,27 @@
 static void *WorkerThread_main(void *arg) {
 	WorkerThread *wth = (WorkerThread *)arg;
 	Scheduler *sche = wth->sche;
-	int id = wth->id;
+	int myid = wth->id;
 	Task *task;
 
 	while(!sche->dead_flag) {
-		task = dequeueTop(wth);
+		task = wth->joinwait ? NULL : dequeueBottom(wth);
+		wth->joinwait = false;
 		if(task != NULL) {
 			vmrun(sche->ctx, wth, task);
 		} else {
-
+			// steal task
+			for(int i=1; i<WORKER_MAX; i++) {
+				int id = (myid + i) % WORKER_MAX;
+				WorkerThread *w = &sche->wthpool[id];
+				if(!isEmpty(w)) {
+					if((task = dequeueTop(w)) != NULL) {
+						//printf("steal id=%d from %d task=%d\n", wth->id, w->id, task->sp[0]);
+						vmrun(sche->ctx, wth, task);
+						break;
+					}
+				}
+			}
 		}
 	}
 	return NULL;
@@ -40,7 +52,12 @@ Scheduler::Scheduler(Context *ctx) {
 		wth->sche = this;
 		wth->id = i;
 		wth->bottom = 0;
-		wth->top.i32 = 0;
+		wth->top.i = 0;
+		wth->top.stamp = 0;
+		wth->joinwait = false;
+	}
+	for(int i=0; i<WORKER_MAX; i++) {
+		WorkerThread *wth = &wthpool[i];
 		pthread_create(&wth->pth, NULL, WorkerThread_main, wth);
 	}
 }
@@ -84,25 +101,28 @@ Scheduler::~Scheduler() {
 //	return task;
 //}
 
+bool isEmpty(WorkerThread *wth) {
+	int top = wth->top.i;
+	int btm = wth->bottom;
+	return btm <= top;
+}
+
 void enqueue(WorkerThread *wth, Task *task) {
-	int n = wth->bottom;
-	wth->tasks[n] = task;
-	wth->bottom++;
 	assert(wth->bottom < QUEUE_MAX);
+	//printf("enqueue id=%d task=%d\n", wth->id, task->sp[0]);
+	wth->tasks[wth->bottom] = task;
+	wth->bottom++;
 }
 
 Task *dequeueTop(WorkerThread *wth) {
-	Stamp old = wth->top;
+	Stamp oldStamp = wth->top;
+	Stamp newStamp;
+	newStamp.i = oldStamp.i + 1; /* top index */
+	newStamp.stamp = oldStamp.stamp + 1;
+	if(wth->bottom <= oldStamp.i) return NULL;
 
-	int oldTop = old.i, newTop = oldTop + 1;
-	int oldStamp = old.stamp, newStamp = oldStamp + 1;
-	if(wth->bottom <= oldTop) return NULL;
-	Task *task = wth->tasks[oldTop];
-
-	Stamp newst;
-	newst.i = newTop;
-	newst.stamp = newStamp;
-	if(CAS(wth->top.i32, old.i32, newst.i32)) {
+	Task *task = wth->tasks[oldStamp.i];
+	if(CAS(wth->top.i32, oldStamp.i32, newStamp.i32)) {
 		return task;
 	}
 	return NULL;
@@ -113,22 +133,22 @@ Task *dequeueBottom(WorkerThread *wth) {
 	wth->bottom--;
 	Task *task = wth->tasks[wth->bottom];
 	
-	Stamp old = wth->top;
-	int oldTop = old.i, newTop = oldTop + 1;
-	int oldStamp = old.stamp, newStamp = oldStamp + 1;
-	if(wth->bottom > oldTop) return task;
-	Stamp newst;
-	newst.i = newTop;
-	newst.stamp = newStamp;
-	if(wth->bottom == oldTop) {
+	Stamp oldStamp = wth->top;
+	Stamp newStamp;
+	newStamp.i = 0; /* top index */
+	newStamp.stamp = oldStamp.stamp + 1;
+
+	if(wth->bottom > oldStamp.i) return task;
+	if(wth->bottom == oldStamp.i) {
 		wth->bottom = 0;
-		if(CAS(wth->top.i32, old.i32, newst.i32)) {
+		if(CAS(wth->top.i32, oldStamp.i32, newStamp.i32)) {
 			return task;
 		}
 	}
-	wth->top.i32 = newst.i32;
+	wth->top = newStamp;
+	return NULL;
 }
-	
+
 //------------------------------------------------------
 Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 	Task *oldtop = freelist;
