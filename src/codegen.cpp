@@ -24,14 +24,14 @@ static void genIntValue(Cons *cons, CodeBuilder *cb, int sp) {
 			cb->createIConst(sp, 0);
 			return;
 		}
-		if(cb->func != NULL) {
-			int n = getArgIndex(cb->func, name);
+		if(cb->getFunc() != NULL) {
+			int n = getArgIndex(cb->getFunc(), name);
 			if(n != -1) {
 				cb->createMov(sp, n);
 				return;
 			}
 		}
-		Variable *var = cb->ctx->getVar(name);
+		Variable *var = cb->getCtx()->getVar(name);
 		if(var != NULL) {
 			cb->createLoadGlobal(var, sp);
 			return;
@@ -49,7 +49,7 @@ static void genIntValue(Cons *cons, CodeBuilder *cb, int sp) {
 static bool genIntTask(Cons *cons, CodeBuilder *cb, int sp) {
 	if(cons->type == CONS_CAR) {
 		const char *name = cons->car->str;
-		Func *func = cb->ctx->getFunc(name);
+		Func *func = cb->getCtx()->getFunc(name);
 		assert(func != NULL);
 		//if(func->code != NULL) {
 			genSpawn(func, cons->car->cdr, cb, sp);
@@ -218,24 +218,26 @@ static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Variable *v = new Variable();
 	v->name = newStr(name);
 	v->value.i = 0;
-	cb->ctx->putVar(v);
+	cb->getCtx()->putVar(v);
 
 	genIntValue(expr, cb, sp);
 	cb->createStoreGlobal(v, sp);
 }
 
-static void genDefun(Func *, Cons *cons, CodeBuilder *_cb, int sp) {
+static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	const char *name = cons->str;
 	cons = cons->cdr;
 	Cons *args = cons->car;
 	cons = cons->cdr;
 	Func *func = newFunc(name, args, genCall);
-	_cb->ctx->putFunc(func);
 
-	CodeBuilder cb(_cb->ctx, func);
-	cb.codegen(cons, func->argc);
-	cb.createRet();
-	func->code = cb.getCode();
+	Context *ctx = cb->getCtx();
+	ctx->putFunc(func);
+
+	CodeBuilder newCb(ctx, func);
+	newCb.codegen(cons, func->argc);
+	newCb.createRet();
+	func->code = newCb.getCode();
 }
 
 void addDefaultFuncs(Context *ctx) {

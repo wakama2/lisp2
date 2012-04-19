@@ -3,10 +3,11 @@
 static void *WorkerThread_main(void *arg) {
 	WorkerThread *wth = (WorkerThread *)arg;
 	Scheduler *sche = wth->sche;
+	Context *ctx = sche->getCtx();
 	Task *task;
 	while((task = sche->dequeue()) != NULL) {
 		assert(task->stat == TASK_RUN);
-		vmrun(sche->ctx, wth, task);
+		vmrun(ctx, wth, task);
 	}
 	return NULL;
 }

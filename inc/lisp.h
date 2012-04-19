@@ -42,7 +42,7 @@ class CodeBuilder;
 //------------------------------------------------------
 // instruction, code, value
 
-enum {
+enum Instructions {
 #define I(a) a,
 #include "inst"
 #undef I
@@ -70,7 +70,7 @@ struct Value {
 };
 
 //------------------------------------------------------
-// function
+// function, variable
 
 typedef void (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
 
@@ -107,11 +107,11 @@ public:
 	Func *getFunc(const char *name);
 	void putVar(Variable *var);
 	Variable *getVar(const char *name);
+	const char *getInstName(int ins);
 #ifdef USING_THCODE
 	void *jmptable[INS_COUNT];
 	void *getDTLabel(int ins); /* direct threaded code label */
 #endif
-	const char *getInstName(int ins);
 };
 
 void addDefaultFuncs(Context *ctx);
@@ -152,6 +152,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 
 class Scheduler {
 private:
+	Context *ctx;
 	Task **taskq;
 	int taskEnqIndex;
 	int taskDeqIndex;
@@ -163,13 +164,13 @@ private:
 	WorkerThread *wthpool;
 
 public:
-	Context *ctx;
 	Scheduler(Context *ctx);
 	~Scheduler();
 	void enqueue(Task *task);
 	Task *dequeue();
 	Task *newTask(Func *func, Value *args, TaskMethod dest);
 	void deleteTask(Task *task);
+	Context *getCtx() { return ctx; }
 };
 
 //------------------------------------------------------
@@ -216,12 +217,10 @@ private:
 
 public:
 	Tokenizer(Reader r, void *rp);
-
 	bool isIntToken(int *n);
 	bool isSymbol(char ch);
 	bool isStrToken(const char **);
 	bool isEof();
-
 	void printErrorMsg(const char *msg);
 };
 
@@ -232,14 +231,13 @@ bool parseCons(Tokenizer *tk, Cons **res);
 
 class CodeBuilder {
 private:
+	Context *ctx;
+	Func *func;
 	Code code[256];
 	int ci;
 	void addInst(int inst);
 
 public:
-	Context *ctx;
-	Func *func;
-
 	CodeBuilder(Context *_ctx, Func *_func);
 	void createIConst(int r, int i);
 	void createMov(int r, int n);
@@ -264,6 +262,8 @@ public:
 
 	Code *getCode();
 	void codegen(Cons *cons, int sp);
+	Context *getCtx() { return ctx; }
+	Func *getFunc()   { return func; }
 };
 
 #endif
