@@ -8,6 +8,7 @@ LIB = -lreadline -lpthread
 SRCS = \
 	src/vm.cpp \
 	src/scheduler.cpp \
+	src/queue.cpp \
 	src/codegen.cpp \
 	src/builder.cpp \
 	src/context.cpp \

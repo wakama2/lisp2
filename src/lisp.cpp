@@ -62,7 +62,9 @@ static void runCons(Context *ctx, Cons *cons) {
 	assert(task != NULL);
 	pthread_mutex_lock(&g_lock);
 	//sche->enqueue(task);
-	enqueue(&sche->wthpool[0], task);
+	//sche->wthpool[0].queue->pushBottom(task);
+	assert(sche->firsttask == NULL);
+	sche->firsttask = task;
 	pthread_cond_wait(&g_cond, &g_lock);
 	pthread_mutex_unlock(&g_lock);
 

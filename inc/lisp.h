@@ -137,32 +137,45 @@ struct Task {
 //------------------------------------------------------
 // worker thread
 
-union Stamp {
-	volatile int32_t i32;
-	struct {
-		volatile int16_t i;
-		volatile int16_t stamp;
-	};
+class CircularArray {
+private:
+	int capa;
+	Task **tasks;
+
+public:
+	CircularArray(int capa);
+	~CircularArray();
+	int capacity() { return 1 << capa; }
+	Task *get(int i) { return tasks[i % capacity()]; }
+	void put(int i, Task *task) { tasks[i % capacity()] = task; }
+	CircularArray *resize(int bottom, int top);
 };
 
-#define QUEUE_MAX 64
+class UnboundedDEQueue {
+private:
+	CircularArray * volatile tasks;
+	volatile int bottom;
+	volatile int top;
+public:
+	UnboundedDEQueue();
+	~UnboundedDEQueue();
+	bool isEmpty();
+	void pushBottom(Task *task);
+	Task *popTop();
+	Task *popBottom();
+};
+
+//------------------------------------------------------
+// worker thread
 
 struct WorkerThread {
 	Context *ctx;
 	Scheduler *sche;
 	int id;
-	Task *tasks[QUEUE_MAX];
-	volatile int bottom;
-	Stamp top;
 	pthread_t pth;
-
 	bool joinwait;
+	UnboundedDEQueue *queue;
 };
-
-void enqueue(WorkerThread *wth, Task *task);
-Task *dequeueTop(WorkerThread *wth);
-Task *dequeueBottom(WorkerThread *wth);
-bool isEmpty(WorkerThread *wth);
 
 void vmrun(Context *ctx, WorkerThread *wth, Task *task);
 
@@ -178,12 +191,11 @@ private:
 public:
 	volatile bool dead_flag;
 	WorkerThread *wthpool;
+	Task *firsttask;
 
 	Context *ctx;
 	Scheduler(Context *ctx);
 	~Scheduler();
-	//void enqueue(Task *task);
-	//Task *dequeue();
 	Task *newTask(Func *func, Value *args, TaskMethod dest);
 	void deleteTask(Task *task);
 };

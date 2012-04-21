@@ -115,8 +115,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 			pc = pc[1].func->code;
 		} else {
 			// spawn
-			//sche->enqueue(t);
-			enqueue(wth, t);
+			wth->queue->pushBottom(t);
 			pc += 4;
 		}
 	} NEXT();
@@ -129,9 +128,8 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 			if(t->stat == TASK_RUN) {
 				task->pc = pc;
 				task->sp = sp;
-				//sche->enqueue(task);
-				enqueue(wth, task);
-				wth->joinwait = true;
+				wth->queue->pushBottom(task);
+				//wth->joinwait = true;
 				return;
 			} else {
 				sp[res] = t->stack[0];
