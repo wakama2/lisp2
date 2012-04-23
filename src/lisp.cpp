@@ -79,7 +79,7 @@ static void compileAndRun(Context *ctx, Reader r, void *rp) {
 	while(!tk.isEof()) {
 		if(parseCons(&tk, &res)) {
 			res->cdr = NULL;
-			cons_println(res);
+			//cons_println(res);
 			runCons(ctx, res);
 			cons_free(res);
 		} else {
