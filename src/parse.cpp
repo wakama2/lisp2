@@ -15,13 +15,12 @@ static int toLower(char ch) {
 }
 
 //------------------------------------------------------
-Tokenizer::Tokenizer(Reader r, void *rp) {
+Tokenizer::Tokenizer(Reader *r) {
 	this->reader = r;
-	this->reader_p = rp;
 	this->linenum = 0;
 	this->cnum = 0;
-	this->ch = r(rp);
-	this->nextch = r(rp);
+	this->ch = r->read();
+	this->nextch = r->read();
 	if(ch != EOF) {
 		linebuf[cnum++] = ch;
 	}
@@ -36,7 +35,7 @@ int Tokenizer::seek() {
 		linebuf[cnum] = ch;
 		cnum++;
 	}
-	nextch = reader(reader_p);
+	nextch = reader->read();
 	return ch;
 }
 

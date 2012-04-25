@@ -201,12 +201,15 @@ void cons_println(Cons *cons, FILE *fp = stdout);
 //------------------------------------------------------
 // parser
 
-typedef int (*Reader)(void *p);
+class Reader {
+public:
+	virtual ~Reader() {}
+	virtual int read() = 0;
+};
 
 class Tokenizer {
 private:
-	Reader reader;
-	void *reader_p;
+	Reader *reader;
 	int nextch;
 	int ch;
 	int linenum;
@@ -216,7 +219,7 @@ private:
 	int seek();
 
 public:
-	Tokenizer(Reader r, void *rp);
+	Tokenizer(Reader *r);
 	bool isIntToken(int *n);
 	bool isSymbol(char ch);
 	bool isStrToken(const char **);

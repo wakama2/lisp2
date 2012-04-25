@@ -73,8 +73,8 @@ static void runCons(Context *ctx, Cons *cons) {
 }
 
 //------------------------------------------------------
-static void compileAndRun(Context *ctx, Reader r, void *rp) {
-	Tokenizer tk(r, rp);
+static void compileAndRun(Context *ctx, Reader *r) {
+	Tokenizer tk(r);
 	Cons *res;
 	while(!tk.isEof()) {
 		if(parseCons(&tk, &res)) {
@@ -90,63 +90,42 @@ static void compileAndRun(Context *ctx, Reader r, void *rp) {
 
 //------------------------------------------------------
 #define HISTFILE "history"
-struct CharReader {
-	char *in;
-	int index;
-	int length;
-	bool isEOF;
-};
 
-static int readChar(void *p) {
-	CharReader *cr = (CharReader *)p;
-	if(cr->isEOF) return EOF;
-	while(cr->in == NULL || cr->index >= cr->length) {
-		if(cr->in != NULL) {
-			if(cr->index <= cr->length + 2) {
-				cr->index++;
-				return '\n';
-			}
-			free(cr->in);
-		}
-		char *in = readline(">>");
-		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
-			cr->isEOF = true;
-			return EOF;
-		} else {
-		}
-		cr->in = in;
-		cr->index = 0;
-		cr->length = strlen(in);
-		if(cr->length > 0) {
-			add_history(in);
-			write_history(HISTFILE);
-		}
-	}
-	return cr->in[cr->index++];
-}
+class CharReader : public Reader {
+private:
+	const char *in;
+public:
+	CharReader(const char *in) { this->in = in; }
+	int read() { return *in != '\0' ? *in++ : EOF; }
+};
 
 static void runInteractive(Context *ctx) {
 	// init readline
 	read_history(HISTFILE);
 	// start
-	CharReader cr;
-	cr.in = NULL;
-	cr.isEOF = false;
 	while(true) {
-		compileAndRun(ctx, readChar, &cr);
-		if(cr.in != NULL) {
-			free(cr.in);
-			cr.in = NULL;
+		char *in = readline(">>");
+		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
+			break;
 		}
-		if(cr.isEOF) break;
+		CharReader r(in);
+		compileAndRun(ctx, &r);
+		if(strlen(in) > 0) {
+			add_history(in);
+			write_history(HISTFILE);
+		}
+		free(in);
 	}
 }
 
 //------------------------------------------------------
-static int reader_file(void *p) {
-	FILE *fp = (FILE *)p;
-	return fgetc(fp);
-}
+class FileReader : public Reader {
+private:
+	FILE *fp;
+public:
+	FileReader(FILE *fp) { this->fp = fp; }
+	int read() { return fgetc(fp); }
+};
 
 static void runFromFile(Context *ctx, const char *filename) {
 	FILE *fp = fopen(filename, "r");
@@ -154,7 +133,8 @@ static void runFromFile(Context *ctx, const char *filename) {
 		fprintf(stderr, "file open error: %s\n", filename);
 		return;
 	}
-	compileAndRun(ctx, reader_file, fp);
+	FileReader fr(fp);
+	compileAndRun(ctx, &fr);
 	fclose(fp);
 }
 
