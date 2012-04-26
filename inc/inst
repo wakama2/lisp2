@@ -20,6 +20,13 @@ I(INS_IJMPGT)
 I(INS_IJMPGE)
 I(INS_IJMPEQ)
 I(INS_IJMPNE)
+// jmp pc+[r1] if [r1] < v2
+I(INS_IJMPLTC)
+I(INS_IJMPLEC)
+I(INS_IJMPGTC)
+I(INS_IJMPGEC)
+I(INS_IJMPEQC)
+I(INS_IJMPNEC)
 // jmp pc+[r1]
 I(INS_JMP)
 // global variable [var] [r1]

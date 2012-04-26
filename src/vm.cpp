@@ -78,6 +78,18 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	CASE_IJMPOP(INS_IJMPEQ, ==);
 	CASE_IJMPOP(INS_IJMPNE, !=);
 
+#define CASE_IJMPOPC(ins, op) \
+	CASE(ins) { \
+		pc += (sp[pc[2].i].i op pc[3].i) ? pc[1].i : 4; \
+	} NEXT();
+		
+	CASE_IJMPOPC(INS_IJMPLTC, <);
+	CASE_IJMPOPC(INS_IJMPLEC, <=);
+	CASE_IJMPOPC(INS_IJMPGTC, >);
+	CASE_IJMPOPC(INS_IJMPGEC, >=);
+	CASE_IJMPOPC(INS_IJMPEQC, ==);
+	CASE_IJMPOPC(INS_IJMPNEC, !=);
+
 	CASE(INS_JMP) {
 		pc += pc[1].i;
 	} NEXT();

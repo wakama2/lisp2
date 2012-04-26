@@ -268,6 +268,7 @@ public:
 	void createCall(Func *func, int ss) { createFuncIns(INS_CALL, func, ss); }
 	void createSpawn(Func *func, int ss) { createFuncIns(INS_SPAWN, func, ss); }
 	int  createCondOp(int inst, int a, int b);
+	int  createCondOpC(int inst, int a, int b);
 	int  createJmp();
 	void setLabel(int n);
 	Code *getCode();

@@ -134,6 +134,16 @@ static int toOp(const char *s) {
 	return -1;
 }
 
+static int toOpC(const char *s) {
+	if(strcmp(s, "<") == 0)  return INS_IJMPGEC;
+	if(strcmp(s, "<=") == 0) return INS_IJMPGTC;
+	if(strcmp(s, ">") == 0)  return INS_IJMPLEC;
+	if(strcmp(s, ">=") == 0) return INS_IJMPLTC;
+	if(strcmp(s, "==") == 0) return INS_IJMPNEC;
+	if(strcmp(s, "!=") == 0) return INS_IJMPEQC;
+	return -1;
+}
+
 // FIXME
 static void genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Cons *cond = cons;
@@ -142,16 +152,24 @@ static void genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	cons = cons->cdr;
 	Cons *elseCons = cons;
 	// cond
-	int op;
+	int op, label;
 	if(cond->type == CONS_CAR && (op = toOp(cond->car->str)) != -1) {
-		genIntValue(cond->car->cdr, cb, sp);
-		genIntValue(cond->car->cdr->cdr, cb, sp + 1);
+		Cons *lhs = cond->car->cdr;
+		Cons *rhs = lhs->cdr;
+		genIntValue(lhs, cb, sp);
+		if(rhs->type == CONS_INT) {
+			op = toOpC(cond->car->str);
+			label = cb->createCondOpC(op, sp, rhs->i);
+		} else {
+			genIntValue(rhs, cb, sp + 1);
+			label = cb->createCondOp(op, sp, sp+1);
+		}
 	} else {
 		genIntValue(cond, cb, sp);
 		cb->createIConst(sp + 1, 0); /* nil */
 		op = INS_IJMPEQ;
+		label = cb->createCondOp(op, sp, sp+1);
 	}
-	int label = cb->createCondOp(op, sp, sp+1);
 
 	// then expr
 	genIntValue(thenCons, cb, sp);
@@ -274,6 +292,20 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 		pc += 4;
 		break;
 	}
+	case INS_IJMPLTC: 
+	case INS_IJMPLEC: 
+	case INS_IJMPGTC: 
+	case INS_IJMPGEC: 
+	case INS_IJMPEQC: 
+	case INS_IJMPNEC: {
+		lb[ls] = cb.createCondOpC(pc[0].i, pc[2].i + sp, pc[3].i);
+		lpc[ls] = pc + pc[1].i;
+		ll[ls] = layer;
+		ls++;
+		pc += 4;
+		break;
+	}
+	
 	case INS_JMP: {
 		Code *pc2 = pc + pc[1].i;
 		if(pc2->i == INS_RET) {
@@ -350,7 +382,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 		break;
 	}
 	default:
-		exit(1);
+		abort();
 	}
 	goto L_BEGIN;
 

@@ -90,6 +90,18 @@ int CodeBuilder::createCondOp(int inst, int a, int b) {
 	return lb;
 }
 
+int CodeBuilder::createCondOpC(int inst, int a, int b) {
+	int lb = ci;
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\t[%d] %d L%d\n", ci, ctx->getInstName(inst), a, b, lb);
+	}
+	ADDINS(inst);
+	ADD(i, 0);
+	ADD(i, a);
+	ADD(i, b);
+	return lb;
+}
+
 int CodeBuilder::createJmp() {
 	int lb = ci;
 	if(ctx->flagShowIR) {
