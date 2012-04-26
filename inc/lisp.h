@@ -9,7 +9,7 @@
 #define TASKQUEUE_MAX   32 /* must be 2^n */
 #define TASK_STACKSIZE 1024
 
-#define USING_THCODE
+//#define USING_THCODE
 
 //------------------------------------------------------
 // includes and structs
@@ -259,6 +259,7 @@ public:
 	void createSpawn(Func *func, int shiftsfp, int rix);
 	void createJoin(int n);
 	void createRet();
+	void createEnd();
 	int createCondOp(int inst, int a, int b); // return label
 	int createJmp();
 	void setLabel(int n);

@@ -96,6 +96,10 @@ void CodeBuilder::createRet() {
 	addInst(INS_RET);
 }
 
+void CodeBuilder::createEnd() {
+	addInst(INS_END);
+}
+
 void CodeBuilder::setLabel(int n) {
 	code[n + 1].i = ci - n;
 }

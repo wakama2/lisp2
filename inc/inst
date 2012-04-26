@@ -35,4 +35,5 @@ I(INS_JOIN)
 // print [r1] for debug
 I(INS_IPRINT)
 I(INS_TNILPRINT)
+I(INS_END)
 

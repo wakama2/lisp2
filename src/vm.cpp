@@ -161,6 +161,10 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 2;
 	} NEXT();
 
+	CASE(INS_END) {
+
+	}
+
 #ifndef USING_THCODE
 	DEFAULT {
 		fprintf(stderr, "Error instruction!\n");

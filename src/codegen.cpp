@@ -224,6 +224,54 @@ static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	cb->createStoreGlobal(v, sp);
 }
 
+#define COPY(n) { \
+		for(int i=0; i<n; i++) { \
+			*pc2++ = *pc++; \
+		} \
+	}
+			
+
+static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
+	CodeBuilder cb(ctx, func);
+	Code *pc = func->code;
+	Code *code_buf = new Code[256];
+	Code *pc2 = code_buf;
+	int sft = 0;
+	L_BEGIN: switch(pc->i) {
+	case INS_ICONST: COPY(3); break;
+	case INS_MOV: COPY(3); break;
+	case INS_IADD: COPY(3); break;
+	case INS_ISUB: COPY(3); break;
+	case INS_IMUL: COPY(3); break;
+	case INS_IDIV: COPY(3); break;
+	case INS_IMOD: COPY(3); break;
+	case INS_IADDC: COPY(3); break;
+	case INS_ISUBC: COPY(3); break;
+	case INS_INEG: COPY(2); break;
+	case INS_IJMPLT: COPY(4); break;
+	case INS_IJMPLE: COPY(4); break;
+	case INS_IJMPGT: COPY(4); break;
+	case INS_IJMPGE: COPY(4); break;
+	case INS_IJMPEQ: COPY(4); break;
+	case INS_IJMPNE: COPY(4); break;
+	case INS_JMP: COPY(2); break;
+	case INS_LOAD_GLOBAL: COPY(3); break;
+	case INS_STORE_GLOBAL: COPY(3); break;
+	case INS_CALL: COPY(4); break;
+	case INS_SPAWN: COPY(4); break;
+	case INS_RET: COPY(1); break;
+	case INS_JOIN: COPY(2); break;
+	case INS_IPRINT: COPY(2); break;
+	case INS_TNILPRINT: COPY(2); break;
+	case INS_END: goto L_FINAL;
+	default:
+		exit(1);
+	}
+	goto L_BEGIN;
+	L_FINAL:;
+	func->code = code_buf;
+}
+
 static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	const char *name = cons->str;
 	cons = cons->cdr;
@@ -237,7 +285,10 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	CodeBuilder newCb(ctx, func);
 	newCb.codegen(cons, func->argc);
 	newCb.createRet();
+	newCb.createEnd();
 	func->code = newCb.getCode();
+
+	opt_inline(ctx, func, 1);
 }
 
 void addDefaultFuncs(Context *ctx) {
