@@ -232,16 +232,28 @@ static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 
 #define C_INS() { *pc2++ = *pc++; }
 #define C_V() { *pc2++ = *pc++; }
-#define C_R() { pc2->i = pc->i + shift; pc2++; pc++; }
+#define C_R() { pc2->i = pc->i + sp; pc2++; pc++; }
+
+struct Frame {
+	Code *pc;
+	int sp;
+};
 
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	CodeBuilder cb(ctx, func);
 	Code *pc = func->code;
 	Code *code_buf = new Code[256];
 	Code *pc2 = code_buf;
-	int shift = 0;
+	Frame frame[64];
+	Frame *fp = frame;
+	int sp = 0;
 	int layer = 0;
-	L_BEGIN: switch(pc->i) {
+	L_BEGIN:
+	//if(ctx->flagShowIR) {
+		printf("%03d: %s\t%08p %08p\n", pc2 - code_buf, ctx->getInstName(pc->i), 
+			pc[1].ptr, pc[2].ptr);
+	//}
+	switch(pc->i) {
 	case INS_ICONST: C_INS(); C_R(); C_V(); break;
 	case INS_MOV: C_INS(); C_R(); C_R(); break;
 	case INS_IADD: C_INS(); C_R(); C_R(); break;
@@ -262,30 +274,55 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_LOAD_GLOBAL:  C_INS(); C_V(); C_R(); break;
 	case INS_STORE_GLOBAL: C_INS(); C_V(); C_R(); break;
 	case INS_CALL:  {
-		shift += pc[2].i;
-		layer++;
-		pc += 4;
+		if(layer < inlinecnt) {
+			// inline
+			fp->pc = pc + 4;
+			fp->sp = sp;
+			sp += pc[2].i;
+			pc = pc[1].func->code;
+			fp++;
+			layer++;
+		} else {
+			// not inline
+			COPY(4);
+		}
 		break;
 	}
 	case INS_SPAWN: COPY(4); break;
 	case INS_RET: {
 		if(layer > 0) {
-			pc += 2;
-			layer--;
+			//C_INS(); C_R(); C_R();
+			pc += 1;
+			pc2[0].i = INS_MOV;
+			pc2[1].i = sp-2;
+			pc2[2].i = sp;
+			pc2+=3;
+			// goto end
 		} else {
-			C_INS(); C_R();
+			C_INS();
 		}
 		break;
 	}
 	case INS_JOIN:  COPY(2); break;
 	case INS_IPRINT:    C_INS(); C_R(); break;
 	case INS_TNILPRINT: C_INS(); C_R(); break;
-	case INS_END: goto L_FINAL;
+	case INS_END: {
+		if(layer == 0) {
+		C_INS();
+			goto L_FINAL;
+		}
+		layer--;
+		fp--;
+		pc = fp->pc;
+		sp = fp->sp;
+		break;
+	}
 	default:
 		exit(1);
 	}
 	goto L_BEGIN;
 	L_FINAL:;
+	delete [] func->code;
 	func->code = code_buf;
 }
 
