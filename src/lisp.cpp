@@ -143,13 +143,16 @@ int main(int argc, char **argv) {
 	Context *ctx = new Context();
 	pthread_mutex_init(&g_lock, NULL);
 	pthread_cond_init(&g_cond, NULL);
-	if(argc >= 2) {
-		int i = 1;
-		for(; i<argc; i++) {
-			if(strcmp(argv[i], "-i") == 0) ctx->flagShowIR = true;
-			else break;
+	const char *fname = NULL;
+	for(int i=1; i<argc; i++) {
+		if(strcmp(argv[i], "-i") == 0) {
+			ctx->flagShowIR = true;
+		} else {
+			fname = argv[i];
 		}
-		runFromFile(ctx, argv[i]);
+	}
+	if(fname != NULL) {
+		runFromFile(ctx, fname);
 	} else {
 		runInteractive(ctx);
 	}
