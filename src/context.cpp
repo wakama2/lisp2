@@ -67,7 +67,7 @@ void *Context::getDTLabel(int ins) {
 
 const char *Context::getInstName(int inst) {
 	switch(inst) {
-#define I(a) case a: return #a;
+#define I(a) case INS_##a: return #a;
 #include "inst"
 #undef I
 		default: return "";

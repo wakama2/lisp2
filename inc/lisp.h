@@ -4,12 +4,12 @@
 //------------------------------------------------------
 // configuration
 
+#define USING_THCODE
+#define INLINE_DEPTH 4
 #define WORKER_MAX 8
 #define TASK_MAX   (WORKER_MAX * 3 / 2)
 #define TASKQUEUE_MAX   32 /* must be 2^n */
 #define TASK_STACKSIZE 1024
-
-#define USING_THCODE
 
 //------------------------------------------------------
 // includes and structs
@@ -43,7 +43,7 @@ class CodeBuilder;
 // instruction, code, value
 
 enum Instructions {
-#define I(a) a,
+#define I(a) INS_##a,
 #include "inst"
 #undef I
 	INS_COUNT,

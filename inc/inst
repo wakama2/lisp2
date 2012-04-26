@@ -1,46 +1,46 @@
 // [r1] = v2
-I(INS_ICONST)
+I(ICONST)
 // [r1] = [v2]
-I(INS_MOV)
+I(MOV)
 // [r1] += [r2]
-I(INS_IADD)
-I(INS_ISUB)
-I(INS_IMUL)
-I(INS_IDIV)
-I(INS_IMOD)
+I(IADD)
+I(ISUB)
+I(IMUL)
+I(IDIV)
+I(IMOD)
 // [r1] += r2
-I(INS_IADDC)
-I(INS_ISUBC)
+I(IADDC)
+I(ISUBC)
 // [r1] *= -1
-I(INS_INEG)
+I(INEG)
 // jmp pc+[r1] if [r1] < [r2]
-I(INS_IJMPLT)
-I(INS_IJMPLE)
-I(INS_IJMPGT)
-I(INS_IJMPGE)
-I(INS_IJMPEQ)
-I(INS_IJMPNE)
+I(IJMPLT)
+I(IJMPLE)
+I(IJMPGT)
+I(IJMPGE)
+I(IJMPEQ)
+I(IJMPNE)
 // jmp pc+[r1] if [r1] < v2
-I(INS_IJMPLTC)
-I(INS_IJMPLEC)
-I(INS_IJMPGTC)
-I(INS_IJMPGEC)
-I(INS_IJMPEQC)
-I(INS_IJMPNEC)
+I(IJMPLTC)
+I(IJMPLEC)
+I(IJMPGTC)
+I(IJMPGEC)
+I(IJMPEQC)
+I(IJMPNEC)
 // jmp pc+[r1]
-I(INS_JMP)
+I(JMP)
 // global variable [var] [r1]
-I(INS_LOAD_GLOBAL)
-I(INS_STORE_GLOBAL)
+I(LOAD_GLOBAL)
+I(STORE_GLOBAL)
 // call [func], shift, rix
-I(INS_CALL)
-I(INS_SPAWN)
+I(CALL)
+I(SPAWN)
 // ret [r1]
-I(INS_RET)
+I(RET)
 // wait [r1]
-I(INS_JOIN)
+I(JOIN)
 // print [r1] for debug
-I(INS_IPRINT)
-I(INS_TNILPRINT)
-I(INS_END)
+I(IPRINT)
+I(TNILPRINT)
+I(END)
 

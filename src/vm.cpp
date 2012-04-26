@@ -9,7 +9,7 @@
 #else
 # define SWITCHBEGIN L_HEAD: switch(pc->i) {
 # define SWITCHEND   }
-# define CASE(a)     case a:
+# define CASE(a)     case INS_##a:
 # define NEXT()      goto L_HEAD
 # define DEFAULT		 default:
 #endif
@@ -19,7 +19,7 @@ static void do_nothing(Task *task, WorkerThread *wth) {}
 void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 #ifdef USING_THCODE
 	if(wth == NULL) {
-#define I(a) ctx->jmptable[a] = &&L_##a;
+#define I(a) ctx->jmptable[INS_##a] = &&L_##a;
 #include "inst"
 #undef I
 		return;
@@ -30,12 +30,12 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 
 	SWITCHBEGIN;
 
-	CASE(INS_ICONST) {
+	CASE(ICONST) {
 		sp[pc[1].i].i = pc[2].i;
 		pc += 3;
 	} NEXT();
 
-	CASE(INS_MOV) {
+	CASE(MOV) {
 		sp[pc[1].i] = sp[pc[2].i];
 		pc += 3;
 	} NEXT();
@@ -46,11 +46,11 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 3; \
 	} NEXT();
 		
-	CASE_IOP(INS_IADD, +=);
-	CASE_IOP(INS_ISUB, -=);
-	CASE_IOP(INS_IMUL, *=);
-	CASE_IOP(INS_IDIV, /=);
-	CASE_IOP(INS_IMOD, %=);
+	CASE_IOP(IADD, +=);
+	CASE_IOP(ISUB, -=);
+	CASE_IOP(IMUL, *=);
+	CASE_IOP(IDIV, /=);
+	CASE_IOP(IMOD, %=);
 
 #define CASE_IOPC(ins, op) \
 	CASE(ins) { \
@@ -58,10 +58,10 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 3; \
 	} NEXT();
 		
-	CASE_IOPC(INS_IADDC, +=);
-	CASE_IOPC(INS_ISUBC, -=);
+	CASE_IOPC(IADDC, +=);
+	CASE_IOPC(ISUBC, -=);
 	
-	CASE(INS_INEG) {
+	CASE(INEG) {
 		sp[pc[1].i].i = -sp[pc[1].i].i;
 		pc += 2;
 	} NEXT();
@@ -71,40 +71,40 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += (sp[pc[2].i].i op sp[pc[3].i].i) ? pc[1].i : 4; \
 	} NEXT();
 		
-	CASE_IJMPOP(INS_IJMPLT, <);
-	CASE_IJMPOP(INS_IJMPLE, <=);
-	CASE_IJMPOP(INS_IJMPGT, >);
-	CASE_IJMPOP(INS_IJMPGE, >=);
-	CASE_IJMPOP(INS_IJMPEQ, ==);
-	CASE_IJMPOP(INS_IJMPNE, !=);
+	CASE_IJMPOP(IJMPLT, <);
+	CASE_IJMPOP(IJMPLE, <=);
+	CASE_IJMPOP(IJMPGT, >);
+	CASE_IJMPOP(IJMPGE, >=);
+	CASE_IJMPOP(IJMPEQ, ==);
+	CASE_IJMPOP(IJMPNE, !=);
 
 #define CASE_IJMPOPC(ins, op) \
 	CASE(ins) { \
 		pc += (sp[pc[2].i].i op pc[3].i) ? pc[1].i : 4; \
 	} NEXT();
 		
-	CASE_IJMPOPC(INS_IJMPLTC, <);
-	CASE_IJMPOPC(INS_IJMPLEC, <=);
-	CASE_IJMPOPC(INS_IJMPGTC, >);
-	CASE_IJMPOPC(INS_IJMPGEC, >=);
-	CASE_IJMPOPC(INS_IJMPEQC, ==);
-	CASE_IJMPOPC(INS_IJMPNEC, !=);
+	CASE_IJMPOPC(IJMPLTC, <);
+	CASE_IJMPOPC(IJMPLEC, <=);
+	CASE_IJMPOPC(IJMPGTC, >);
+	CASE_IJMPOPC(IJMPGEC, >=);
+	CASE_IJMPOPC(IJMPEQC, ==);
+	CASE_IJMPOPC(IJMPNEC, !=);
 
-	CASE(INS_JMP) {
+	CASE(JMP) {
 		pc += pc[1].i;
 	} NEXT();
 
-	CASE(INS_LOAD_GLOBAL) {
+	CASE(LOAD_GLOBAL) {
 		sp[pc[2].i] = pc[1].var->value;
 		pc += 3;
 	} NEXT();
 
-	CASE(INS_STORE_GLOBAL) {
+	CASE(STORE_GLOBAL) {
 		pc[1].var->value = sp[pc[2].i];
 		pc += 3;
 	} NEXT();
 
-	CASE(INS_CALL) {
+	CASE(CALL) {
 		register Value *sp2 = sp;
 		sp += pc[2].i;
 		sp[-2].sp = sp2;
@@ -112,12 +112,12 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc = pc[1].func->code;
 	} NEXT();
 
-	CASE(INS_SPAWN) {
+	CASE(SPAWN) {
 		Scheduler *sche = wth->sche;
 		Task *t = sche->newTask(pc[1].func, sp + pc[2].i, do_nothing);
 		sp[pc[2].i - 3].task = t;
 		if(t == NULL) {
-			// INS_CALL
+			// CALL
 			register Value *sp2 = sp;
 			sp += pc[2].i;
 			sp[-2].sp = sp2;
@@ -130,7 +130,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		}
 	} NEXT();
 
-	CASE(INS_JOIN) {
+	CASE(JOIN) {
 		Scheduler *sche = wth->sche;
 		register int res = pc[1].i;
 		Task *t = sp[res].task;
@@ -150,7 +150,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 2;
 	} NEXT();
 
-	CASE(INS_RET) {
+	CASE(RET) {
 		if(sp != task->stack) {
 			register Value *sp2 = sp[-2].sp;
 			sp[-2] = sp[pc[1].i];
@@ -164,17 +164,17 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		}
 	} NEXT();
 
-	CASE(INS_IPRINT) {
+	CASE(IPRINT) {
 		fprintf(stdout, "%ld\n", sp[pc[1].i].i);
 		pc += 2;
 	} NEXT();
 
-	CASE(INS_TNILPRINT) {
+	CASE(TNILPRINT) {
 		fprintf(stdout, "%s\n", sp[pc[1].i].i ? "T" : "Nil");
 		pc += 2;
 	} NEXT();
 
-	CASE(INS_END) {
+	CASE(END) {
 
 	}
 

@@ -410,7 +410,7 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	opt_inline(ctx, func, 4);
+	opt_inline(ctx, func, INLINE_DEPTH);
 }
 
 void addDefaultFuncs(Context *ctx) {
