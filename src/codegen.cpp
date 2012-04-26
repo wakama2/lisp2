@@ -229,40 +229,44 @@ static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 			*pc2++ = *pc++; \
 		} \
 	}
-			
+
+#define C_INS() { *pc2++ = *pc++; }
+#define C_V() { *pc2++ = *pc++; }
+#define C_R() { pc2->i = pc->i + shift; pc2++; pc++; }
 
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	CodeBuilder cb(ctx, func);
 	Code *pc = func->code;
 	Code *code_buf = new Code[256];
 	Code *pc2 = code_buf;
-	int sft = 0;
+	int shift = 0;
+	int layer = 0;
 	L_BEGIN: switch(pc->i) {
-	case INS_ICONST: COPY(3); break;
-	case INS_MOV: COPY(3); break;
-	case INS_IADD: COPY(3); break;
-	case INS_ISUB: COPY(3); break;
-	case INS_IMUL: COPY(3); break;
-	case INS_IDIV: COPY(3); break;
-	case INS_IMOD: COPY(3); break;
-	case INS_IADDC: COPY(3); break;
-	case INS_ISUBC: COPY(3); break;
-	case INS_INEG: COPY(2); break;
+	case INS_ICONST: C_INS(); C_R(); C_V(); break;
+	case INS_MOV: C_INS(); C_R(); C_R(); break;
+	case INS_IADD: C_INS(); C_R(); C_R(); break;
+	case INS_ISUB: C_INS(); C_R(); C_R(); break;
+	case INS_IMUL: C_INS(); C_R(); C_R(); break;
+	case INS_IDIV: C_INS(); C_R(); C_R(); break;
+	case INS_IMOD: C_INS(); C_R(); C_R(); break;
+	case INS_IADDC: C_INS(); C_R(); C_V(); break;
+	case INS_ISUBC: C_INS(); C_R(); C_V(); break;
+	case INS_INEG: C_INS(); C_V();  break;
 	case INS_IJMPLT: COPY(4); break;
 	case INS_IJMPLE: COPY(4); break;
 	case INS_IJMPGT: COPY(4); break;
 	case INS_IJMPGE: COPY(4); break;
 	case INS_IJMPEQ: COPY(4); break;
 	case INS_IJMPNE: COPY(4); break;
-	case INS_JMP: COPY(2); break;
-	case INS_LOAD_GLOBAL: COPY(3); break;
-	case INS_STORE_GLOBAL: COPY(3); break;
-	case INS_CALL: COPY(4); break;
+	case INS_JMP:    COPY(2); break;
+	case INS_LOAD_GLOBAL:  C_INS(); C_V(); C_R(); break;
+	case INS_STORE_GLOBAL: C_INS(); C_V(); C_R(); break;
+	case INS_CALL:  COPY(4); break;
 	case INS_SPAWN: COPY(4); break;
-	case INS_RET: COPY(1); break;
-	case INS_JOIN: COPY(2); break;
-	case INS_IPRINT: COPY(2); break;
-	case INS_TNILPRINT: COPY(2); break;
+	case INS_RET:   COPY(1); break;
+	case INS_JOIN:  COPY(2); break;
+	case INS_IPRINT:    C_INS(); C_R(); break;
+	case INS_TNILPRINT: C_INS(); C_R(); break;
 	case INS_END: goto L_FINAL;
 	default:
 		exit(1);
