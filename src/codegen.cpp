@@ -236,12 +236,13 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	Frame *fp = frame;
 	int ls = 0;
 	int lb[64];
+	int ll[64];
 	Code *lpc[64];
 	int sp = 0;
 	int layer = 0;
 	L_BEGIN:
 	for(int i=0; i<ls; i++) {
-		if(pc == lpc[i]) {
+		if(pc == lpc[i] && layer == ll[i]) {
 			cb.setLabel(lb[i]);
 			lpc[i] = NULL;
 		}
@@ -268,6 +269,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_IJMPNE: {
 		lb[ls] = cb.createCondOp(pc[0].i, pc[2].i + sp, pc[3].i + sp);
 		lpc[ls] = pc + pc[1].i;
+		ll[ls] = layer;
 		ls++;
 		pc += 4;
 		break;
@@ -275,6 +277,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_JMP: {
 		lb[ls] = cb.createJmp();
 		lpc[ls] = pc + pc[1].i;
+		ll[ls] = layer;
 		ls++;
 		pc += 2;
 		break;
@@ -292,12 +295,12 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			layer++;
 		} else {
 			// not inline
-			cb.createCall(pc[1].func, pc[2].i);
+			cb.createCall(pc[1].func, pc[2].i + sp);
 			pc += 3;
 		}
 		break;
 	}
-	case INS_SPAWN: cb.createSpawn(pc[1].func, pc[2].i); pc += 3; break;
+	case INS_SPAWN: cb.createSpawn(pc[1].func, pc[2].i + sp); pc += 3; break;
 	case INS_RET: {
 		if(layer > 0) {
 			cb.createMov(sp-2, sp + pc[1].i);
@@ -306,6 +309,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			if(pc->i != INS_END) {
 				lb[ls] = cb.createJmp();
 				lpc[ls] = fp[-1].pc;
+				ll[ls] = layer - 1;
 				ls++;
 			}
 		} else {
