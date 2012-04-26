@@ -9,7 +9,7 @@
 #define TASKQUEUE_MAX   32 /* must be 2^n */
 #define TASK_STACKSIZE 1024
 
-//#define USING_THCODE
+#define USING_THCODE
 
 //------------------------------------------------------
 // includes and structs
@@ -238,9 +238,10 @@ private:
 	Func *func;
 	Code code[256];
 	int ci;
+	bool genthc;
 
 public:
-	CodeBuilder(Context *_ctx, Func *_func);
+	CodeBuilder(Context *_ctx, Func *_func, bool genthc = false);
 	
 	void createIns(int ins);
 	void createIntIns(int ins, int reg, int ival);
@@ -260,19 +261,15 @@ public:
 	void createISubC(int r, int v) { createIntIns(INS_ISUBC, r, v); }
 	void createINeg(int r) { createRegIns(INS_INEG, r); }
 	void createJoin(int r) { createRegIns(INS_JOIN, r); }
-
 	void createRet(int r) { createRegIns(INS_RET, r); }
 	void createEnd() { createIns(INS_END); }
-
 	void createLoadGlobal(Variable *var, int reg) { createVarIns(INS_LOAD_GLOBAL, reg, var); }
 	void createStoreGlobal(Variable *var, int reg) { createVarIns(INS_STORE_GLOBAL, reg, var); }
 	void createCall(Func *func, int ss) { createFuncIns(INS_CALL, func, ss); }
 	void createSpawn(Func *func, int ss) { createFuncIns(INS_SPAWN, func, ss); }
-
-	int  createCondOp(int inst, int a, int b); // return label
+	int  createCondOp(int inst, int a, int b);
 	int  createJmp();
 	void setLabel(int n);
-
 	Code *getCode();
 	void codegen(Cons *cons, int sp);
 	Context *getCtx() { return ctx; }

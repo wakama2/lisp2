@@ -52,7 +52,7 @@ static void runCons(Context *ctx, Cons *cons) {
 	Func *func = new Func();
 	func->name = "__script";
 	func->argc = 0;
-	CodeBuilder *cb = new CodeBuilder(ctx, func);
+	CodeBuilder *cb = new CodeBuilder(ctx, func, true);
 	cb->codegen(cons, 0);
 	cb->createRet(0);
 	func->code = cb->getCode();

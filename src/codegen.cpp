@@ -230,7 +230,7 @@ struct Frame {
 };
 
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
-	CodeBuilder cb(ctx, func);
+	CodeBuilder cb(ctx, func, true);
 	Code *pc = func->code;
 	Frame frame[8];
 	Frame *fp = frame;
@@ -361,7 +361,7 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	opt_inline(ctx, func, 1);
+	opt_inline(ctx, func, 3);
 }
 
 void addDefaultFuncs(Context *ctx) {

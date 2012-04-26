@@ -1,15 +1,22 @@
 #include "lisp.h"
 
-CodeBuilder::CodeBuilder(Context *ctx, Func *func) {
+CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 	this->ctx = ctx;
 	this->func = func;
+	this->genthc = genthc;
 	ci = 0;
 }
 
 #define ADD(f, v) code[ci++].f = (v)
 
 #ifdef USING_THCODE
-# define ADDINS(n) ADD(ptr, ctx->getDTLabel(n))
+# define ADDINS(n) { \
+		if(genthc) { \
+			ADD(ptr, ctx->getDTLabel(n)); \
+		} else { \
+			ADD(i, n); \
+		} \
+	}
 #else
 # define ADDINS(n) ADD(i, n)
 #endif
