@@ -275,10 +275,27 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 		break;
 	}
 	case INS_JMP: {
-		lb[ls] = cb.createJmp();
-		lpc[ls] = pc + pc[1].i;
-		ll[ls] = layer;
-		ls++;
+		Code *pc2 = pc + pc[1].i;
+		if(pc2->i == INS_RET) {
+			// jump & return
+			if(layer > 0) {
+				cb.createMov(sp-2, sp + pc2[1].i);
+				// goto end
+				if(pc[2].i != INS_END) {
+					lb[ls] = cb.createJmp();
+					lpc[ls] = fp[-1].pc;
+					ll[ls] = layer - 1;
+					ls++;
+				}
+			} else {
+				cb.createRet(pc2[1].i + sp);
+			}
+		} else {
+			lb[ls] = cb.createJmp();
+			lpc[ls] = pc2;
+			ll[ls] = layer;
+			ls++;
+		}
 		pc += 2;
 		break;
 	}
@@ -361,7 +378,7 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	opt_inline(ctx, func, 3);
+	opt_inline(ctx, func, 4);
 }
 
 void addDefaultFuncs(Context *ctx) {

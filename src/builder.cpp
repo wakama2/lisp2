@@ -5,6 +5,12 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 	this->func = func;
 	this->genthc = genthc;
 	ci = 0;
+	if(ctx->flagShowIR) {
+		printf("//----------------------------//\n");
+		if(func != NULL) {
+			printf("* defun %s argc=%d\n", func->name, func->argc);
+		}
+	}
 }
 
 #define ADD(f, v) code[ci++].f = (v)
