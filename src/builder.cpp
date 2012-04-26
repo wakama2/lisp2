@@ -4,7 +4,6 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 	this->ctx = ctx;
 	this->func = func;
 	this->genthc = genthc;
-	ci = 0;
 	if(ctx->flagShowIR) {
 		printf("//----------------------------//\n");
 		if(func != NULL) {
@@ -13,7 +12,11 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 	}
 }
 
-#define ADD(f, v) code[ci++].f = (v)
+#define ADD(f, v) { \
+		Code c; \
+		c.f = (v); \
+		codebuf.add(c); \
+	}
 
 #ifdef USING_THCODE
 # define ADDINS(n) { \
@@ -27,6 +30,7 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 # define ADDINS(n) ADD(i, n)
 #endif
 
+#define ci codebuf.getSize()
 void CodeBuilder::createIns(int ins) {
 	if(ctx->flagShowIR) {
 		printf("%03d: %s\n", ci, ctx->getInstName(ins));
@@ -116,13 +120,11 @@ void CodeBuilder::setLabel(int n) {
 	if(ctx->flagShowIR) {
 		printf("L%d:\n", n);
 	}
-	code[n + 1].i = ci - n;
+	codebuf[n+1].i = ci - n;
 }
 
 Code *CodeBuilder::getCode() {
-	Code *c = new Code[ci];
-	memcpy(c, code, sizeof(Code) * ci);
-	return c;
+	return codebuf.toArray();
 }
 
 void CodeBuilder::codegen(Cons *cons, int sp) {
