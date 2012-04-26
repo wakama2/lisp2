@@ -300,8 +300,8 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_SPAWN: cb.createSpawn(pc[1].func, pc[2].i); pc += 3; break;
 	case INS_RET: {
 		if(layer > 0) {
-			pc += 1;
-			cb.createMov(sp-2, sp);
+			cb.createMov(sp-2, sp + pc[1].i);
+			pc += 2;
 			// goto end
 			if(pc->i != INS_END) {
 				lb[ls] = cb.createJmp();
@@ -309,8 +309,8 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 				ls++;
 			}
 		} else {
-			cb.createRet();
-			pc++;
+			cb.createRet(func->argc);
+			pc += 2;
 		}
 		break;
 	}
@@ -353,11 +353,11 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 
 	CodeBuilder newCb(ctx, func);
 	newCb.codegen(cons, func->argc);
-	newCb.createRet();
+	newCb.createRet(func->argc);
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	//opt_inline(ctx, func, 1);
+	opt_inline(ctx, func, 1);
 }
 
 void addDefaultFuncs(Context *ctx) {

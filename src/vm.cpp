@@ -93,7 +93,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(INS_CALL) {
-		Value *sp2 = sp;
+		register Value *sp2 = sp;
 		sp += pc[2].i;
 		sp[-2].sp = sp2;
 		sp[-1].pc = pc + 3;
@@ -106,7 +106,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		sp[pc[2].i - 3].task = t;
 		if(t == NULL) {
 			// INS_CALL
-			Value *sp2 = sp;
+			register Value *sp2 = sp;
 			sp += pc[2].i;
 			sp[-2].sp = sp2;
 			sp[-1].pc = pc + 3;
@@ -141,10 +141,11 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	CASE(INS_RET) {
 		if(sp != task->stack) {
 			register Value *sp2 = sp[-2].sp;
-			sp[-2] = sp[0];
+			sp[-2] = sp[pc[1].i];
 			pc = sp[-1].pc;
 			sp = sp2;
 		} else {
+			sp[0] = sp[pc[1].i];
 			task->stat = TASK_END;
 			task->dest(task, wth);
 			return;
