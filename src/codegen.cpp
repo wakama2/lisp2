@@ -224,55 +224,72 @@ static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	cb->createStoreGlobal(v, sp);
 }
 
-#define COPY(n) { \
-		for(int i=0; i<n; i++) { \
-			*pc2++ = *pc++; \
-		} \
-	}
-
 #define C_INS() { *pc2++ = *pc++; }
 #define C_V() { *pc2++ = *pc++; }
 #define C_R() { pc2->i = pc->i + sp; pc2++; pc++; }
+#define C_JMPINS() { \
+		fp->lpc[fp->ls] = pc + pc[1].i; \
+		fp->ldst[fp->ls] = pc2; \
+		fp->ls++; \
+		C_INS(); \
+		C_V(); \
+	}
 
 struct Frame {
 	Code *pc;
 	int sp;
+	int ls;
+	int lb[16];
+	Code *lpc[16];
 };
 
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	CodeBuilder cb(ctx, func);
 	Code *pc = func->code;
-	Code *code_buf = new Code[256];
-	Code *pc2 = code_buf;
-	Frame frame[64];
+	Frame frame[8];
 	Frame *fp = frame;
+	fp->ls = 0;
 	int sp = 0;
 	int layer = 0;
 	L_BEGIN:
-	//if(ctx->flagShowIR) {
-		printf("%03d: %s\t%08p %08p\n", pc2 - code_buf, ctx->getInstName(pc->i), 
-			pc[1].ptr, pc[2].ptr);
-	//}
+	for(int i=0; i<fp->ls; i++) {
+		if(pc == fp->lpc[i]) {
+			cb.setLabel(fp->lb[i]);
+			fp->lpc[i] = NULL;
+		}
+	}
 	switch(pc->i) {
-	case INS_ICONST: C_INS(); C_R(); C_V(); break;
-	case INS_MOV: C_INS(); C_R(); C_R(); break;
-	case INS_IADD: C_INS(); C_R(); C_R(); break;
-	case INS_ISUB: C_INS(); C_R(); C_R(); break;
-	case INS_IMUL: C_INS(); C_R(); C_R(); break;
-	case INS_IDIV: C_INS(); C_R(); C_R(); break;
-	case INS_IMOD: C_INS(); C_R(); C_R(); break;
-	case INS_IADDC: C_INS(); C_R(); C_V(); break;
-	case INS_ISUBC: C_INS(); C_R(); C_V(); break;
-	case INS_INEG: C_INS(); C_V();  break;
-	case INS_IJMPLT: COPY(4); break;
-	case INS_IJMPLE: COPY(4); break;
-	case INS_IJMPGT: COPY(4); break;
-	case INS_IJMPGE: COPY(4); break;
-	case INS_IJMPEQ: COPY(4); break;
-	case INS_IJMPNE: COPY(4); break;
-	case INS_JMP:    COPY(2); break;
-	case INS_LOAD_GLOBAL:  C_INS(); C_V(); C_R(); break;
-	case INS_STORE_GLOBAL: C_INS(); C_V(); C_R(); break;
+	case INS_ICONST: cb.createIConst(pc[1].i + sp, pc[2].i); pc += 3; break;
+	case INS_MOV: cb.createMov(pc[1].i + sp, pc[2].i + sp);  pc += 3; break;
+	case INS_IADD: cb.createIAdd(pc[1].i + sp, pc[2].i + sp); pc += 3; break;
+	case INS_ISUB: cb.createISub(pc[1].i + sp, pc[2].i + sp); pc += 3; break;
+	case INS_IMUL: cb.createIMul(pc[1].i + sp, pc[2].i + sp); pc += 3; break;
+	case INS_IDIV: cb.createIDiv(pc[1].i + sp, pc[2].i + sp); pc += 3; break;
+	case INS_IMOD: cb.createIMod(pc[1].i + sp, pc[2].i + sp); pc += 3; break;
+	case INS_IADDC: cb.createIAddC(pc[1].i + sp, pc[2].i); pc += 3; break;
+	case INS_ISUBC: cb.createISubC(pc[1].i + sp, pc[2].i); pc += 3; break;
+	case INS_INEG: cb.createINeg(pc[1].i + sp); pc += 2; break;
+	case INS_IJMPLT: 
+	case INS_IJMPLE: 
+	case INS_IJMPGT: 
+	case INS_IJMPGE: 
+	case INS_IJMPEQ: 
+	case INS_IJMPNE: {
+		fp->lb[fp->ls] = cb.createCondOp(pc[0].i, pc[2].i + sp, pc[3].i + sp);
+		fp->lpc[fp->ls] = pc + pc[1].i;
+		fp->ls++;
+		pc += 4;
+		break;
+	}
+	case INS_JMP: {
+		fp->lb[fp->ls] = cb.createJmp();
+		fp->lpc[fp->ls] = pc + pc[1].i;
+		fp->ls++;
+		pc += 2;
+		break;
+	}
+	case INS_LOAD_GLOBAL:  cb.createLoadGlobal(pc[1].var, pc[2].i + sp); pc += 3; break;
+	case INS_STORE_GLOBAL: cb.createStoreGlobal(pc[1].var, pc[2].i + sp); pc += 3; break;
 	case INS_CALL:  {
 		if(layer < inlinecnt) {
 			// inline
@@ -281,34 +298,41 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			sp += pc[2].i;
 			pc = pc[1].func->code;
 			fp++;
+			fp->ls = 0;
 			layer++;
 		} else {
 			// not inline
-			COPY(4);
+			cb.createCall(pc[1].func, pc[2].i, pc[3].i);
+			pc += 4;
 		}
 		break;
 	}
-	case INS_SPAWN: COPY(4); break;
+	case INS_SPAWN: cb.createSpawn(pc[1].func, pc[2].i, pc[3].i); pc += 4; break;
 	case INS_RET: {
 		if(layer > 0) {
-			//C_INS(); C_R(); C_R();
 			pc += 1;
-			pc2[0].i = INS_MOV;
-			pc2[1].i = sp-2;
-			pc2[2].i = sp;
-			pc2+=3;
+			cb.createMov(sp-2, sp);
 			// goto end
+			if(pc->i != INS_END) {
+				fp->lb[fp->ls] = cb.createJmp();
+				fp->lpc[fp->ls] = fp[-1].pc;
+				fp->ls++;
+			}
 		} else {
-			C_INS();
+			cb.createRet();
+			pc++;
 		}
 		break;
 	}
-	case INS_JOIN:  COPY(2); break;
-	case INS_IPRINT:    C_INS(); C_R(); break;
-	case INS_TNILPRINT: C_INS(); C_R(); break;
+	case INS_JOIN: cb.createJoin(pc[1].i + sp); pc += 2; break;
+	case INS_IPRINT:    break;//TODO
+	case INS_TNILPRINT: break;//TODO
 	case INS_END: {
+		for(int i=0; i<fp->ls; i++) {
+			if(pc == fp->lpc[i]) printf("ERROR\n");
+		}
 		if(layer == 0) {
-		C_INS();
+			cb.createEnd();
 			goto L_FINAL;
 		}
 		layer--;
@@ -321,9 +345,11 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 		exit(1);
 	}
 	goto L_BEGIN;
+
 	L_FINAL:;
+
 	delete [] func->code;
-	func->code = code_buf;
+	func->code = cb.getCode();
 }
 
 static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
