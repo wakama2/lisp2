@@ -261,9 +261,22 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_JMP:    COPY(2); break;
 	case INS_LOAD_GLOBAL:  C_INS(); C_V(); C_R(); break;
 	case INS_STORE_GLOBAL: C_INS(); C_V(); C_R(); break;
-	case INS_CALL:  COPY(4); break;
+	case INS_CALL:  {
+		shift += pc[2].i;
+		layer++;
+		pc += 4;
+		break;
+	}
 	case INS_SPAWN: COPY(4); break;
-	case INS_RET:   COPY(1); break;
+	case INS_RET: {
+		if(layer > 0) {
+			pc += 2;
+			layer--;
+		} else {
+			C_INS(); C_R();
+		}
+		break;
+	}
 	case INS_JOIN:  COPY(2); break;
 	case INS_IPRINT:    C_INS(); C_R(); break;
 	case INS_TNILPRINT: C_INS(); C_R(); break;
