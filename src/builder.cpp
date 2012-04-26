@@ -6,101 +6,91 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func) {
 	ci = 0;
 }
 
-void CodeBuilder::addInst(int inst) {
-	if(ctx->flagShowIR) {
-		printf("%03d: %s\n", ci, ctx->getInstName(inst));
-	}
+#define ADD(f, v) code[ci++].f = (v)
+
 #ifdef USING_THCODE
-	code[ci++].ptr = ctx->getDTLabel(inst);
+# define ADDINS(n) ADD(ptr, ctx->getDTLabel(n))
 #else
-	code[ci++].i = inst;
+# define ADDINS(n) ADD(i, n)
 #endif
+
+void CodeBuilder::createIns(int ins) {
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\n", ci, ctx->getInstName(ins));
+	}
+	ADDINS(ins);
 }
 
-#define addInt(n)     code[ci++].i = n;
-#define addFunc(func) code[ci++].func = func;
-#define addVar(var)   code[ci++].var = var;
-
-void CodeBuilder::createIConst(int r, int i) {
-	addInst(INS_ICONST);
-	addInt(r);
-	addInt(i);
+void CodeBuilder::createIntIns(int ins, int reg, int ival) {
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\t[%d] %d\n", ci, ctx->getInstName(ins), reg, ival);
+	}
+	ADDINS(ins);
+	ADD(i, reg);
+	ADD(i, ival);
 }
 
-void CodeBuilder::createMov(int r, int n) {
-	addInst(INS_MOV);
-	addInt(r);
-	addInt(n);
+void CodeBuilder::createRegIns(int ins, int reg) {
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\t[%d]\n", ci, ctx->getInstName(ins), reg);
+	}
+	ADDINS(ins);
+	ADD(i, reg);
 }
 
-void CodeBuilder::createOp(int inst, int r, int a) {
-	addInst(inst);
-	addInt(r);
-	addInt(a);
+void CodeBuilder::createReg2Ins(int ins, int reg, int reg2) {
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\t[%d] [%d]\n", ci, ctx->getInstName(ins), reg, reg2);
+	}
+	ADDINS(ins);
+	ADD(i, reg);
+	ADD(i, reg2);
+}
+
+void CodeBuilder::createVarIns(int ins, int reg, Variable *var) {
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\t[%d] %s\n", ci, ctx->getInstName(ins), reg, var->name);
+	}
+	ADDINS(ins);
+	ADD(var, var);
+	ADD(i, reg);
+}
+
+void CodeBuilder::createFuncIns(int ins, Func *func, int sftsfp) {
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\t%s %d\n", ci, ctx->getInstName(ins), func->name, sftsfp);
+	}
+	ADDINS(ins);
+	ADD(func, func);
+	ADD(i, sftsfp);
 }
 
 int CodeBuilder::createCondOp(int inst, int a, int b) {
 	int lb = ci;
-	addInst(inst);
-	addInt(0);
-	addInt(a);
-	addInt(b);
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\t[%d] [%d] L%d\n", ci, ctx->getInstName(inst), a, b, lb);
+	}
+	ADDINS(inst);
+	ADD(i, 0);
+	ADD(i, a);
+	ADD(i, b);
 	return lb;
 }
 
 int CodeBuilder::createJmp() {
 	int lb = ci;
-	addInst(INS_JMP);
-	addInt(0);
+	if(ctx->flagShowIR) {
+		printf("%03d: %s\tL%d\n", ci, ctx->getInstName(INS_JMP), lb);
+	}
+	ADDINS(INS_JMP);
+	ADD(i, 0);
 	return lb;
 }
 
-void CodeBuilder::createINeg(int r) {
-	addInst(INS_INEG);
-	addInt(r);
-}
-
-void CodeBuilder::createLoadGlobal(Variable *var, int r) {
-	addInst(INS_LOAD_GLOBAL);
-	addVar(var);
-	addInt(r);
-}
-
-void CodeBuilder::createStoreGlobal(Variable *var, int r) {
-	addInst(INS_STORE_GLOBAL);
-	addVar(var);
-	addInt(r);
-}
-
-void CodeBuilder::createCall(Func *func, int shift, int rix) {
-	addInst(INS_CALL);
-	addFunc(func);
-	addInt(shift);
-	addInt(rix);
-}
-
-void CodeBuilder::createSpawn(Func *func, int shift, int rix) {
-	addInst(INS_SPAWN);
-	addFunc(func);
-	addInt(shift);
-	addInt(rix);
-}
-
-void CodeBuilder::createJoin(int n) {
-	addInst(INS_JOIN);
-	addInt(n);
-}
-
-void CodeBuilder::createRet() { 
-	if(func != NULL && func->argc != 0) { createMov(0, func->argc); }
-	addInst(INS_RET);
-}
-
-void CodeBuilder::createEnd() {
-	addInst(INS_END);
-}
-
 void CodeBuilder::setLabel(int n) {
+	if(ctx->flagShowIR) {
+		printf("L%d:\n", n);
+	}
 	code[n + 1].i = ci - n;
 }
 

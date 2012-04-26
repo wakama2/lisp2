@@ -54,7 +54,7 @@ static void runCons(Context *ctx, Cons *cons) {
 	func->argc = 0;
 	CodeBuilder *cb = new CodeBuilder(ctx, func);
 	cb->codegen(cons, 0);
-	cb->createRet();
+	cb->createIns(INS_RET);
 	func->code = cb->getCode();
 
 	Scheduler *sche = ctx->sche;

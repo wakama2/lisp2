@@ -238,30 +238,42 @@ private:
 	Func *func;
 	Code code[256];
 	int ci;
-	void addInst(int inst);
 
 public:
 	CodeBuilder(Context *_ctx, Func *_func);
-	void createIConst(int r, int i);
-	void createMov(int r, int n);
-	void createOp(int inst, int r, int a);
-	void createIAdd(int r, int a) { createOp(INS_IADD, r, a); }
-	void createISub(int r, int a) { createOp(INS_ISUB, r, a); }
-	void createIMul(int r, int a) { createOp(INS_IMUL, r, a); }
-	void createIDiv(int r, int a) { createOp(INS_IDIV, r, a); }
-	void createIMod(int r, int a) { createOp(INS_IMOD, r, a); }
-	void createIAddC(int r, int a) { createOp(INS_IADDC, r, a); }
-	void createISubC(int r, int a) { createOp(INS_ISUBC, r, a); }
-	void createINeg(int r);
-	void createLoadGlobal(Variable *var, int r);
-	void createStoreGlobal(Variable *var, int r);
-	void createCall(Func *func, int shiftsfp, int rix);
-	void createSpawn(Func *func, int shiftsfp, int rix);
-	void createJoin(int n);
-	void createRet();
-	void createEnd();
-	int createCondOp(int inst, int a, int b); // return label
-	int createJmp();
+	
+	void createIns(int ins);
+	void createIntIns(int ins, int reg, int ival);
+	void createRegIns(int ins, int reg);
+	void createReg2Ins(int ins, int reg, int reg2);
+	void createVarIns(int ins, int reg, Variable *var);
+	void createFuncIns(int ins, Func *func, int sftsfp);
+	
+	void createIConst(int r, int v) { createIntIns(INS_ICONST, r, v); }
+	void createMov(int r, int r2) { createReg2Ins(INS_MOV, r, r2); }
+	void createIAdd(int r, int r2) { createReg2Ins(INS_IADD, r, r2); }
+	void createISub(int r, int r2) { createReg2Ins(INS_ISUB, r, r2); }
+	void createIMul(int r, int r2) { createReg2Ins(INS_IMUL, r, r2); }
+	void createIDiv(int r, int r2) { createReg2Ins(INS_IDIV, r, r2); }
+	void createIMod(int r, int r2) { createReg2Ins(INS_IMOD, r, r2); }
+	void createIAddC(int r, int v) { createIntIns(INS_IADDC, r, v); }
+	void createISubC(int r, int v) { createIntIns(INS_ISUBC, r, v); }
+	void createINeg(int r) { createRegIns(INS_INEG, r); }
+	void createJoin(int r) { createRegIns(INS_JOIN, r); }
+
+	void createRet() {
+		if(func != NULL && func->argc != 0) { createMov(0, func->argc); }
+		createIns(INS_RET);
+	}
+	void createEnd() { createIns(INS_END); }
+
+	void createLoadGlobal(Variable *var, int reg) { createVarIns(INS_LOAD_GLOBAL, reg, var); }
+	void createStoreGlobal(Variable *var, int reg) { createVarIns(INS_STORE_GLOBAL, reg, var); }
+	void createCall(Func *func, int ss) { createFuncIns(INS_CALL, func, ss); }
+	void createSpawn(Func *func, int ss) { createFuncIns(INS_SPAWN, func, ss); }
+
+	int  createCondOp(int inst, int a, int b); // return label
+	int  createJmp();
 	void setLabel(int n);
 
 	Code *getCode();

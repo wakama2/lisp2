@@ -96,7 +96,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		Value *sp2 = sp;
 		sp += pc[2].i;
 		sp[-2].sp = sp2;
-		sp[-1].pc = pc + 4;
+		sp[-1].pc = pc + 3;
 		pc = pc[1].func->code;
 	} NEXT();
 
@@ -109,12 +109,12 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 			Value *sp2 = sp;
 			sp += pc[2].i;
 			sp[-2].sp = sp2;
-			sp[-1].pc = pc + 4;
+			sp[-1].pc = pc + 3;
 			pc = pc[1].func->code;
 		} else {
 			// spawn
 			sche->enqueue(t);
-			pc += 4;
+			pc += 3;
 		}
 	} NEXT();
 

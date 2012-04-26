@@ -196,7 +196,7 @@ static void genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 		genIntValue(cons, cb, sp + RSFT + n);
 		n++;
 	}
-	cb->createCall(func, sp + RSFT, 0/* unused */);
+	cb->createCall(func, sp + RSFT);
 }
 
 #define SRSFT 3
@@ -206,7 +206,7 @@ static void genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 		genIntValue(cons, cb, sp + SRSFT + n);
 		n++;
 	}
-	cb->createSpawn(func, sp + SRSFT, 0);
+	cb->createSpawn(func, sp + SRSFT);
 }
 
 static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
@@ -254,7 +254,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_IMUL: 
 	case INS_IDIV: 
 	case INS_IMOD: {
-		cb.createOp(pc[0].i, pc[1].i + sp, pc[2].i + sp); pc += 3;
+		cb.createReg2Ins(pc[0].i, pc[1].i + sp, pc[2].i + sp); pc += 3;
 		break;
 	}
 	case INS_IADDC: cb.createIAddC(pc[1].i + sp, pc[2].i); pc += 3; break;
@@ -284,7 +284,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_CALL:  {
 		if(layer < inlinecnt) {
 			// inline
-			fp->pc = pc + 4;
+			fp->pc = pc + 3;
 			fp->sp = sp;
 			sp += pc[2].i;
 			pc = pc[1].func->code;
@@ -292,12 +292,12 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			layer++;
 		} else {
 			// not inline
-			cb.createCall(pc[1].func, pc[2].i, pc[3].i);
-			pc += 4;
+			cb.createCall(pc[1].func, pc[2].i);
+			pc += 3;
 		}
 		break;
 	}
-	case INS_SPAWN: cb.createSpawn(pc[1].func, pc[2].i, pc[3].i); pc += 4; break;
+	case INS_SPAWN: cb.createSpawn(pc[1].func, pc[2].i); pc += 3; break;
 	case INS_RET: {
 		if(layer > 0) {
 			pc += 1;
@@ -357,7 +357,7 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	opt_inline(ctx, func, 1);
+	//opt_inline(ctx, func, 1);
 }
 
 void addDefaultFuncs(Context *ctx) {
