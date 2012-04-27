@@ -164,6 +164,20 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		}
 	} NEXT();
 
+	CASE(RETC) {
+		if(sp != task->stack) {
+			register Value *sp2 = sp[-2].sp;
+			sp[-2].i = pc[1].i;
+			pc = sp[-1].pc;
+			sp = sp2;
+		} else {
+			sp[0].i = pc[1].i;
+			task->stat = TASK_END;
+			task->dest(task, wth);
+			return;
+		}
+	} NEXT();
+
 	CASE(IPRINT) {
 		fprintf(stdout, "%ld\n", sp[pc[1].i].i);
 		pc += 2;

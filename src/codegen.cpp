@@ -156,13 +156,18 @@ static void genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	if(cond->type == CONS_CAR && (op = toOp(cond->car->str)) != -1) {
 		Cons *lhs = cond->car->cdr;
 		Cons *rhs = lhs->cdr;
-		genIntValue(lhs, cb, sp);
+		int reglhs = 0;
+		if(lhs->type == CONS_STR && getArgIndex(cb->getFunc(), lhs->str) != -1) {
+			reglhs = getArgIndex(cb->getFunc(), lhs->str);
+		} else {
+			genIntValue(lhs, cb, sp);
+		}
 		if(rhs->type == CONS_INT) {
 			op = toOpC(cond->car->str);
-			label = cb->createCondOpC(op, sp, rhs->i);
+			label = cb->createCondOpC(op, reglhs, rhs->i);
 		} else {
 			genIntValue(rhs, cb, sp + 1);
-			label = cb->createCondOp(op, sp, sp+1);
+			label = cb->createCondOp(op, reglhs, sp+1);
 		}
 	} else {
 		genIntValue(cond, cb, sp);
@@ -258,8 +263,8 @@ struct Label {
 		la.add(l); \
 	}
 
-static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
-	CodeBuilder cb(ctx, func, true);
+static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
+	CodeBuilder cb(ctx, func, fin);
 	Code *pc = func->code;
 	Frame frame[8];
 	Frame *fp = frame;
@@ -275,7 +280,28 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 		}
 	}
 	switch(pc->i) {
-	case INS_ICONST: cb.createIConst(pc[1].i + sp, pc[2].i); pc += 3; break;
+	case INS_ICONST: {
+		if(pc[3].i == INS_MOV && (pc[1].i == pc[5].i)) {
+			cb.createIConst(pc[4].i + sp, pc[2].i);
+			pc += 3 + 3;
+		} else if(pc[3].i == INS_RET && (pc[1].i == pc[4].i)) {
+			if(layer > 0) {
+				cb.createIConst(sp-2, pc[2].i);
+				// goto end
+				if(pc->i != INS_END) {
+					int n = cb.createJmp();
+					PUSH_LABEL(n, fp[-1].pc, layer-1);
+				}
+			} else {
+				cb.createRetC(pc[2].i);
+			}
+			pc += 3 + 2;
+		} else {
+			cb.createIConst(pc[1].i + sp, pc[2].i);
+			pc += 3;
+		}
+		break;
+	}
 	case INS_MOV: cb.createMov(pc[1].i + sp, pc[2].i + sp);  pc += 3; break;
 	case INS_IADD: 
 	case INS_ISUB: 
@@ -366,6 +392,21 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 		}
 		break;
 	}
+	case INS_RETC: {
+		if(layer > 0) {
+			cb.createIConst(sp-2, pc[1].i);
+			pc += 2;
+			// goto end
+			if(pc->i != INS_END) {
+				int n = cb.createJmp();
+				PUSH_LABEL(n, fp[-1].pc, layer-1);
+			}
+		} else {
+			cb.createRetC(pc[1].i);
+			pc += 2;
+		}
+		break;
+	}
 	case INS_JOIN: cb.createJoin(pc[1].i + sp); pc += 2; break;
 	case INS_IPRINT:    break;//TODO
 	case INS_TNILPRINT: break;//TODO
@@ -406,7 +447,9 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	opt_inline(ctx, func, INLINE_DEPTH);
+	opt_inline(ctx, func, INLINE_DEPTH, false);
+	//opt_inline(ctx, func, 0, false);
+	opt_inline(ctx, func, 0, true);
 }
 
 void addDefaultFuncs(Context *ctx) {

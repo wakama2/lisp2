@@ -37,6 +37,7 @@ I(CALL)
 I(SPAWN)
 // ret [r1]
 I(RET)
+I(RETC)
 // wait [r1]
 I(JOIN)
 // print [r1] for debug

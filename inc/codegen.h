@@ -33,6 +33,7 @@ public:
 	void createINeg(int r) { createRegIns(INS_INEG, r); }
 	void createJoin(int r) { createRegIns(INS_JOIN, r); }
 	void createRet(int r) { createRegIns(INS_RET, r); }
+	void createRetC(int n) { createIntIns(INS_RETC, n, 0); }//FIXME
 	void createEnd() { createIns(INS_END); }
 	void createLoadGlobal(Variable *var, int reg) { createVarIns(INS_LOAD_GLOBAL, reg, var); }
 	void createStoreGlobal(Variable *var, int reg) { createVarIns(INS_STORE_GLOBAL, reg, var); }
