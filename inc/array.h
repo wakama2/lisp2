@@ -35,10 +35,16 @@ public:
 	int  getSize() {
 		return size;
 	}
+	void clear() {
+		size = 0;
+	}
 	T *toArray() {
 		T *newdata = new T[size];
 		memcpy(newdata, data, sizeof(T) * size);
 		return newdata;
+	}
+	T *getPtr() {
+		return data;
 	}
 };
 

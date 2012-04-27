@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <pthread.h>
+#include "array.h"
 
 struct Code;
 struct Value;
@@ -39,7 +40,6 @@ class CodeBuilder;
 #define ATOMIC_SUB(p, v) __sync_fetch_and_sub(&(p), v)
 #define CAS(a, ov, nv) __sync_bool_compare_and_swap(&(a), ov, nv)
 
-#include "array.h"
 //------------------------------------------------------
 // instruction, code, value
 

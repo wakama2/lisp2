@@ -18,11 +18,10 @@ static int toLower(char ch) {
 Tokenizer::Tokenizer(Reader *r) {
 	this->reader = r;
 	this->linenum = 0;
-	this->cnum = 0;
 	this->ch = r->read();
 	this->nextch = r->read();
 	if(ch != EOF) {
-		linebuf[cnum++] = ch;
+		linebuf.add(ch);
 	}
 }
 
@@ -30,10 +29,9 @@ int Tokenizer::seek() {
 	ch = nextch;
 	if(ch == '\n') {
 		linenum++;
-		cnum = 0;
+		linebuf.clear();
 	} else if(ch != EOF) {
-		linebuf[cnum] = ch;
-		cnum++;
+		linebuf.add(ch);
 	}
 	nextch = reader->read();
 	return ch;
@@ -94,10 +92,9 @@ bool Tokenizer::isStrToken(const char **strp) {
 
 void Tokenizer::printErrorMsg(const char *msg) {
 	fprintf(stderr, "parse error(line=%d): %s\n", linenum, msg);
-	linebuf[cnum] = '\0';
-	fprintf(stderr, "n = %d\n", cnum);
-	fprintf(stderr, "%s\n", linebuf);
-	for(int i=0; i<cnum; i++) {
+	linebuf.add('\0');
+	fprintf(stderr, "%s\n", linebuf.getPtr());
+	for(int i=0, j=linebuf.getSize(); i<j; i++) {
 		fprintf(stderr, " ");
 	}
 	fprintf(stderr, "^\n");

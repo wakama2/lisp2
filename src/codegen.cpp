@@ -247,22 +247,31 @@ struct Frame {
 	int sp;
 };
 
+struct Label {
+	int lb;
+	Code *pc;
+	int layer;
+};
+
+#define PUSH_LABEL(_l, _pc, _la) { \
+		Label l; l.lb=(_l); l.pc=(_pc); l.layer=(_la); \
+		la.add(l); \
+	}
+
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	CodeBuilder cb(ctx, func, true);
 	Code *pc = func->code;
 	Frame frame[8];
 	Frame *fp = frame;
-	int ls = 0;
-	int lb[64];
-	int ll[64];
-	Code *lpc[64];
+	ArrayBuilder<Label> la;
 	int sp = 0;
 	int layer = 0;
 	L_BEGIN:
-	for(int i=0; i<ls; i++) {
-		if(pc == lpc[i] && layer == ll[i]) {
-			cb.setLabel(lb[i]);
-			lpc[i] = NULL;
+	for(int i=0, j=la.getSize(); i<j; i++) {
+		Label l = la[i];
+		if(pc == l.pc && layer == l.layer) {
+			cb.setLabel(l.lb);
+			l.pc = NULL;
 		}
 	}
 	switch(pc->i) {
@@ -285,10 +294,8 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_IJMPGE: 
 	case INS_IJMPEQ: 
 	case INS_IJMPNE: {
-		lb[ls] = cb.createCondOp(pc[0].i, pc[2].i + sp, pc[3].i + sp);
-		lpc[ls] = pc + pc[1].i;
-		ll[ls] = layer;
-		ls++;
+		int n = cb.createCondOp(pc[0].i, pc[2].i + sp, pc[3].i + sp);
+		PUSH_LABEL(n, pc + pc[1].i, layer);
 		pc += 4;
 		break;
 	}
@@ -298,10 +305,8 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_IJMPGEC: 
 	case INS_IJMPEQC: 
 	case INS_IJMPNEC: {
-		lb[ls] = cb.createCondOpC(pc[0].i, pc[2].i + sp, pc[3].i);
-		lpc[ls] = pc + pc[1].i;
-		ll[ls] = layer;
-		ls++;
+		int n = cb.createCondOpC(pc[0].i, pc[2].i + sp, pc[3].i);
+		PUSH_LABEL(n, pc + pc[1].i, layer);
 		pc += 4;
 		break;
 	}
@@ -314,19 +319,15 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 				cb.createMov(sp-2, sp + pc2[1].i);
 				// goto end
 				if(pc[2].i != INS_END) {
-					lb[ls] = cb.createJmp();
-					lpc[ls] = fp[-1].pc;
-					ll[ls] = layer - 1;
-					ls++;
+					int n = cb.createJmp();
+					PUSH_LABEL(n, fp[-1].pc, layer-1);
 				}
 			} else {
 				cb.createRet(pc2[1].i + sp);
 			}
 		} else {
-			lb[ls] = cb.createJmp();
-			lpc[ls] = pc2;
-			ll[ls] = layer;
-			ls++;
+			int n = cb.createJmp();
+			PUSH_LABEL(n, pc2, layer);
 		}
 		pc += 2;
 		break;
@@ -356,10 +357,8 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			pc += 2;
 			// goto end
 			if(pc->i != INS_END) {
-				lb[ls] = cb.createJmp();
-				lpc[ls] = fp[-1].pc;
-				ll[ls] = layer - 1;
-				ls++;
+				int n = cb.createJmp();
+				PUSH_LABEL(n, fp[-1].pc, layer-1);
 			}
 		} else {
 			cb.createRet(func->argc);
@@ -387,9 +386,6 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	goto L_BEGIN;
 
 	L_FINAL:;
-	for(int i=0; i<ls; i++) {
-		if(pc == lpc[i]) printf("ERROR\n");
-	}
 	delete [] func->code;
 	func->code = cb.getCode();
 }

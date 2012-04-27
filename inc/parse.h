@@ -16,8 +16,8 @@ private:
 	int nextch;
 	int ch;
 	int linenum;
-	int cnum;
-	char linebuf[256];
+	ArrayBuilder<char> linebuf;
+	ArrayBuilder<char> tokenbuf;
 
 	int seek();
 
