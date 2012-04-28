@@ -147,6 +147,26 @@ static int toOpC(const char *s) {
 	return -1;
 }
 
+#define genCondFunc(_fname, _op) \
+static ValueType _fname(Func *, Cons *cons, CodeBuilder *cb, int sp) { \
+	gen(cons, cb, sp); \
+	gen(cons->cdr, cb, sp + 1); \
+	int l = cb->createCondOp(_op, sp, sp + 1); \
+	cb->createIConst(sp, 1); \
+	int m = cb->createJmp(); \
+	cb->setLabel(l); \
+	cb->createIConst(sp, 0); \
+	cb->setLabel(m); \
+	return VT_BOOLEAN; \
+}
+
+genCondFunc(genLT, INS_IJMPGE);
+genCondFunc(genLE, INS_IJMPGT);
+genCondFunc(genGT, INS_IJMPLE);
+genCondFunc(genGE, INS_IJMPLT);
+genCondFunc(genEQ, INS_IJMPNE);
+genCondFunc(genNE, INS_IJMPEQ);
+
 // FIXME
 static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Cons *cond = cons;
@@ -168,10 +188,14 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 			label = cb->createCondOp(op, sp, sp+1);
 		}
 	} else {
-		gen(cond, cb, sp);
-		cb->createIConst(sp + 1, 0); /* nil */
-		op = INS_IJMPEQ;
-		label = cb->createCondOp(op, sp, sp+1);
+		ValueType cty = gen(cond, cb, sp);
+		if(cty == VT_BOOLEAN) {
+			cb->createIConst(sp + 1, 0); /* nil */
+			op = INS_IJMPEQ;
+			label = cb->createCondOp(op, sp, sp+1);
+		} else {
+			label = -1;
+		}
 	}
 
 	// then expr
@@ -179,7 +203,7 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	int merge = cb->createJmp();
 
 	// else expr
-	cb->setLabel(label);
+	if(label != -1) cb->setLabel(label);
 	gen(elseCons, cb, sp);
 
 	cb->setLabel(merge);
@@ -422,17 +446,17 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 }
 
 void addDefaultFuncs(Context *ctx) {
-	ctx->putFunc(newFunc("+", NULL, genAdd));
-	ctx->putFunc(newFunc("-", NULL, genSub));
-	ctx->putFunc(newFunc("*", NULL, genMul));
-	ctx->putFunc(newFunc("/", NULL, genDiv));
-	ctx->putFunc(newFunc("%", NULL, genMod));
-	//ctx->putFunc(newFunc("<", NULL, genAdd));
-	//ctx->putFunc(newFunc(">", NULL, genAdd));
-	//ctx->putFunc(newFunc("<=", NULL, genAdd));
-	//ctx->putFunc(newFunc(">=", NULL, genAdd));
-	//ctx->putFunc(newFunc("==", NULL, genAdd));
-	//ctx->putFunc(newFunc("!=", NULL, genAdd));
+	ctx->putFunc(newFunc("+" , NULL, genAdd));
+	ctx->putFunc(newFunc("-" , NULL, genSub));
+	ctx->putFunc(newFunc("*" , NULL, genMul));
+	ctx->putFunc(newFunc("/" , NULL, genDiv));
+	ctx->putFunc(newFunc("%" , NULL, genMod));
+	ctx->putFunc(newFunc("<" , NULL, genLT));
+	ctx->putFunc(newFunc(">" , NULL, genGT));
+	ctx->putFunc(newFunc("<=", NULL, genLE));
+	ctx->putFunc(newFunc(">=", NULL, genGE));
+	ctx->putFunc(newFunc("==", NULL, genEQ));
+	ctx->putFunc(newFunc("!=", NULL, genNE));
 	ctx->putFunc(newFunc("if", NULL, genIf));
 	ctx->putFunc(newFunc("setq", NULL, genSetq));
 	ctx->putFunc(newFunc("defun", NULL, genDefun));
