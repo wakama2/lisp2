@@ -154,10 +154,20 @@ int main(int argc, char **argv) {
 		} else if(strcmp(argv[i], "-inline") == 0) {
 			i++;
 			ctx->inlinecount = atoi(argv[i]);
+		} else if(strcmp(argv[i], "-worker") == 0) {
+			i++;
+			int n = atoi(argv[i]);
+			if(n >= 2 && n < 20) {
+				ctx->workers = n;
+			} else {
+				fprintf(stderr, "error\n");
+				exit(1);
+			}
 		} else {
 			fname = argv[i];
 		}
 	}
+	ctx->sche->initWorkers();
 	if(fname != NULL) {
 		runFromFile(ctx, fname);
 	} else {

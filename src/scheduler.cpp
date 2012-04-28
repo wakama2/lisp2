@@ -29,16 +29,6 @@ Scheduler::Scheduler(Context *ctx) {
 		taskpool[i].next = &taskpool[i+1];
 	}
 	taskpool[TASK_MAX - 1].next = NULL;
-
-	// start worker threads
-	wthpool = new WorkerThread[WORKER_MAX];
-	for(int i=0; i<WORKER_MAX; i++) {
-		WorkerThread *wth = &wthpool[i];
-		wth->ctx = ctx;
-		wth->sche = this;
-		wth->id = i;
-		pthread_create(&wth->pth, NULL, WorkerThread_main, wth);
-	}
 }
 
 Scheduler::~Scheduler() {
@@ -46,7 +36,7 @@ Scheduler::~Scheduler() {
 	dead_flag = true;
 	pthread_cond_broadcast(&tl_cond);
 	pthread_mutex_unlock(&tl_lock);
-	for(int i=0; i<WORKER_MAX; i++) {
+	for(int i=0; i<ctx->workers; i++) {
 		WorkerThread *wth = &wthpool[i];
 		pthread_join(wth->pth, NULL);
 		pthread_detach(wth->pth);
@@ -54,6 +44,18 @@ Scheduler::~Scheduler() {
 	delete [] wthpool;
 	delete [] taskpool;
 	delete [] taskq;
+}
+
+void Scheduler::initWorkers() {
+	// start worker threads
+	wthpool = new WorkerThread[ctx->workers];
+	for(int i=0; i<ctx->workers; i++) {
+		WorkerThread *wth = &wthpool[i];
+		wth->ctx = ctx;
+		wth->sche = this;
+		wth->id = i;
+		pthread_create(&wth->pth, NULL, WorkerThread_main, wth);
+	}
 }
 
 //------------------------------------------------------

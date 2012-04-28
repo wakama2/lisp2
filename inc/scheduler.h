@@ -51,6 +51,7 @@ private:
 public:
 	Scheduler(Context *ctx);
 	~Scheduler();
+	void initWorkers();
 	void enqueue(Task *task);
 	Task *dequeue();
 	Task *newTask(Func *func, Value *args, TaskMethod dest);
