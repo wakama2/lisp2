@@ -46,10 +46,11 @@ public:
 	int  createJmp();
 	void setLabel(int n);
 	Code *getCode();
-	ValueType codegen(Cons *cons, int sp);
 	Context *getCtx() { return ctx; }
 	Func *getFunc()   { return func; }
 };
+
+ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn = false);
 
 #endif
 

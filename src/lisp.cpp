@@ -53,7 +53,7 @@ static void runCons(Context *ctx, Cons *cons) {
 	func->name = "__script";
 	func->argc = 0;
 	CodeBuilder *cb = new CodeBuilder(ctx, func, true);
-	ValueType ty = cb->codegen(cons, 0);
+	ValueType ty = codegen(cons, cb, 0);
 	if(ty == VT_INT) {
 		cb->createPrintInt(0);
 	} else if(ty == VT_BOOLEAN) {

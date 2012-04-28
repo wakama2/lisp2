@@ -11,7 +11,7 @@ static int getArgIndex(Func *func, const char *name) {
 	return -1;
 }
 
-static ValueType gen(Cons *cons, CodeBuilder *cb, int sp, bool spawn = false) {
+ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn) {
 	if(cons->type == CONS_INT) {
 		cb->createIConst(sp, cons->i);
 		return VT_INT;
@@ -40,14 +40,15 @@ static ValueType gen(Cons *cons, CodeBuilder *cb, int sp, bool spawn = false) {
 		fprintf(stderr, "symbol not found: %s\n", cons->str);
 		exit(1);
 	} else if(cons->type == CONS_CAR) {
+		const char *name = cons->car->str;
+		Func *func = cb->getCtx()->getFunc(name);
+		assert(func != NULL);
+		Cons *args = cons->car->cdr;
 		if(spawn) {
-			const char *name = cons->car->str;
-			Func *func = cb->getCtx()->getFunc(name);
-			if(func != NULL) {
-				return genSpawn(func, cons->car->cdr, cb, sp);
-			}
+			return genSpawn(func, cons->car->cdr, cb, sp);
+		} else {
+			return func->codegen(func, args, cb, sp);
 		}
-		return cb->codegen(cons, sp);
 	} else {
 		fprintf(stderr, "integer require\n");
 		exit(1);
@@ -59,7 +60,7 @@ static ValueType genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		cb->createIConst(sp, 0);
 		return VT_INT;
 	}
-	ValueType vt = gen(cons, cb, sp, cons->cdr != NULL);
+	ValueType vt = codegen(cons, cb, sp, cons->cdr != NULL);
 	cons = cons->cdr;
 	bool tf = vt == VT_FUTURE;
 	for(; cons != NULL; cons = cons->cdr) {
@@ -67,7 +68,7 @@ static ValueType genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 			cb->createIAddC(sp, cons->i);
 		} else {
 			int sft = tf ? 3 : 1;
-			gen(cons, cb, sp + sft);
+			codegen(cons, cb, sp + sft);
 			if(tf) {
 				cb->createJoin(sp);
 				tf = false;
@@ -80,7 +81,7 @@ static ValueType genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 
 static ValueType genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	if(cons == NULL) return VT_INT;
-	gen(cons, cb, sp);
+	codegen(cons, cb, sp);
 	cons = cons->cdr;
 	if(cons == NULL) {
 		cb->createINeg(sp);
@@ -90,7 +91,7 @@ static ValueType genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		if(cons->type == CONS_INT) {
 			cb->createISubC(sp, cons->i);
 		} else {
-			gen(cons, cb, sp + 1);
+			codegen(cons, cb, sp + 1);
 			cb->createISub(sp, sp + 1);
 		}
 	}
@@ -98,30 +99,30 @@ static ValueType genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 }
 
 static ValueType genMul(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	gen(cons, cb, sp);
+	codegen(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		gen(cons, cb, sp + 1);
+		codegen(cons, cb, sp + 1);
 		cb->createIMul(sp, sp + 1);
 	}
 	return VT_INT;
 }
 
 static ValueType genDiv(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	gen(cons, cb, sp);
+	codegen(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		gen(cons, cb, sp + 1);
+		codegen(cons, cb, sp + 1);
 		cb->createIDiv(sp, sp + 1);
 	}
 	return VT_INT;
 }
 
 static ValueType genMod(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	gen(cons, cb, sp);
+	codegen(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		gen(cons, cb, sp + 1);
+		codegen(cons, cb, sp + 1);
 		cb->createIMod(sp, sp + 1);
 	}
 	return VT_INT;
@@ -149,8 +150,8 @@ static int toOpC(const char *s) {
 
 #define genCondFunc(_fname, _op) \
 static ValueType _fname(Func *, Cons *cons, CodeBuilder *cb, int sp) { \
-	gen(cons, cb, sp); \
-	gen(cons->cdr, cb, sp + 1); \
+	codegen(cons, cb, sp); \
+	codegen(cons->cdr, cb, sp + 1); \
 	int l = cb->createCondOp(_op, sp, sp + 1); \
 	cb->createIConst(sp, 1); \
 	int m = cb->createJmp(); \
@@ -183,17 +184,17 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		if(lhs->type == CONS_STR && getArgIndex(cb->getFunc(), lhs->str) != -1) {
 			reglhs = getArgIndex(cb->getFunc(), lhs->str);
 		} else {
-			gen(lhs, cb, sp);
+			codegen(lhs, cb, sp);
 		}
 		if(rhs->type == CONS_INT) {
 			op = toOpC(cond->car->str);
 			label = cb->createCondOpC(op, reglhs, rhs->i);
 		} else {
-			gen(rhs, cb, sp + 1);
+			codegen(rhs, cb, sp + 1);
 			label = cb->createCondOp(op, reglhs, sp+1);
 		}
 	} else {
-		ValueType cty = gen(cond, cb, sp);
+		ValueType cty = codegen(cond, cb, sp);
 		if(cty == VT_BOOLEAN) {
 			cb->createIConst(sp + 1, 0); /* nil */
 			op = INS_IJMPEQ;
@@ -204,12 +205,12 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	}
 
 	// then expr
-	gen(thenCons, cb, sp);
+	codegen(thenCons, cb, sp);
 	int merge = cb->createJmp();
 
 	// else expr
 	if(label != -1) cb->setLabel(label);
-	gen(elseCons, cb, sp);
+	codegen(elseCons, cb, sp);
 
 	cb->setLabel(merge);
 	return VT_INT;
@@ -244,7 +245,7 @@ static Func *newFunc(const char *name, Cons *args, CodeGenFunc gen) {
 static ValueType genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 	int n = 0;
 	for(; cons != NULL; cons = cons->cdr) {
-		gen(cons, cb, sp + RSFT + n);
+		codegen(cons, cb, sp + RSFT + n);
 		n++;
 	}
 	cb->createCall(func, sp + RSFT);
@@ -255,7 +256,7 @@ static ValueType genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 static ValueType genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 	int n = 0;
 	for(; cons != NULL; cons = cons->cdr) {
-		gen(cons, cb, sp + SRSFT + n);
+		codegen(cons, cb, sp + SRSFT + n);
 		n++;
 	}
 	cb->createSpawn(func, sp + SRSFT);
@@ -273,7 +274,7 @@ static ValueType genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	v->value.i = 0;
 	cb->getCtx()->putVar(v);
 
-	gen(expr, cb, sp);
+	codegen(expr, cb, sp);
 	cb->createStoreGlobal(v, sp);
 	return VT_VOID;
 }
@@ -473,7 +474,7 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	ctx->putFunc(func);
 
 	CodeBuilder newCb(ctx, func);
-	newCb.codegen(cons, func->argc);
+	codegen(cons, &newCb, func->argc);
 	newCb.createRet(func->argc);
 	newCb.createEnd();
 	func->code = newCb.getCode();
