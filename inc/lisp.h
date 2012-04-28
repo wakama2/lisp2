@@ -5,7 +5,6 @@
 // configuration
 
 #define USING_THCODE
-#define INLINE_DEPTH 4
 #define WORKER_MAX 8
 #define TASK_MAX   (WORKER_MAX * 3 / 2)
 #define TASKQUEUE_MAX   32 /* must be 2^n */
@@ -114,6 +113,7 @@ private:
 public:
 	Scheduler *sche;
 	bool flagShowIR;
+	int inlinecount;
 
 	Context();
 	~Context();

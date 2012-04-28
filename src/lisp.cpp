@@ -151,6 +151,9 @@ int main(int argc, char **argv) {
 	for(int i=1; i<argc; i++) {
 		if(strcmp(argv[i], "-i") == 0) {
 			ctx->flagShowIR = true;
+		} else if(strcmp(argv[i], "-inline") == 0) {
+			i++;
+			ctx->inlinecount = atoi(argv[i]);
 		} else {
 			fname = argv[i];
 		}

@@ -298,7 +298,7 @@ struct Label {
 static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 	CodeBuilder cb(ctx, func, fin);
 	Code *pc = func->code;
-	Frame frame[8];
+	Frame *frame = new Frame[inlinecnt];
 	Frame *fp = frame;
 	ArrayBuilder<Label> la;
 	int sp = 0;
@@ -460,6 +460,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 
 	L_FINAL:;
 	delete [] func->code;
+	delete [] frame;
 	func->code = cb.getCode();
 }
 
@@ -479,7 +480,7 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	opt_inline(ctx, func, INLINE_DEPTH, false);
+	opt_inline(ctx, func, ctx->inlinecount, false);
 	//opt_inline(ctx, func, 0, false);
 	opt_inline(ctx, func, 0, true);
 	return VT_VOID;
