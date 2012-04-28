@@ -73,7 +73,15 @@ struct Value {
 //------------------------------------------------------
 // function, variable
 
-typedef void (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
+enum ValueType {
+	VT_INT,
+	VT_FLOAT,
+	VT_BOOLEAN, // T or NIL
+	VT_FUTURE,
+	VT_VOID,
+};
+
+typedef ValueType (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
 
 struct Func {
 	Code *code;
@@ -86,6 +94,7 @@ struct Func {
 
 struct Variable {
 	Value value;
+	ValueType type;
 	const char *name;
 	Variable *next;
 };

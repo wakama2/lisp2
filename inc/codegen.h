@@ -37,6 +37,8 @@ public:
 	void createEnd() { createIns(INS_END); }
 	void createLoadGlobal(Variable *var, int reg) { createVarIns(INS_LOAD_GLOBAL, reg, var); }
 	void createStoreGlobal(Variable *var, int reg) { createVarIns(INS_STORE_GLOBAL, reg, var); }
+	void createPrintInt(int r) { createRegIns(INS_IPRINT, r); }
+	void createPrintBoolean(int r) { createRegIns(INS_BPRINT, r); }
 	void createCall(Func *func, int ss) { createFuncIns(INS_CALL, func, ss); }
 	void createSpawn(Func *func, int ss) { createFuncIns(INS_SPAWN, func, ss); }
 	int  createCondOp(int inst, int a, int b);
@@ -44,7 +46,7 @@ public:
 	int  createJmp();
 	void setLabel(int n);
 	Code *getCode();
-	void codegen(Cons *cons, int sp);
+	ValueType codegen(Cons *cons, int sp);
 	Context *getCtx() { return ctx; }
 	Func *getFunc()   { return func; }
 };

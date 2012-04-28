@@ -183,7 +183,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 2;
 	} NEXT();
 
-	CASE(TNILPRINT) {
+	CASE(BPRINT) {
 		fprintf(stdout, "%s\n", sp[pc[1].i].i ? "T" : "Nil");
 		pc += 2;
 	} NEXT();

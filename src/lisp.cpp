@@ -53,7 +53,12 @@ static void runCons(Context *ctx, Cons *cons) {
 	func->name = "__script";
 	func->argc = 0;
 	CodeBuilder *cb = new CodeBuilder(ctx, func, true);
-	cb->codegen(cons, 0);
+	ValueType ty = cb->codegen(cons, 0);
+	if(ty == VT_INT) {
+		cb->createPrintInt(0);
+	} else if(ty == VT_BOOLEAN) {
+		cb->createPrintBoolean(0);
+	}
 	cb->createRet(0);
 	func->code = cb->getCode();
 
@@ -65,7 +70,6 @@ static void runCons(Context *ctx, Cons *cons) {
 	pthread_cond_wait(&g_cond, &g_lock);
 	pthread_mutex_unlock(&g_lock);
 
-	printf("%ld\n", task->stack[0].i);
 	sche->deleteTask(task);
 	delete [] func->code;
 	delete func;
