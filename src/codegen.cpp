@@ -1,6 +1,6 @@
 #include "lisp.h"
 
-static void genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp);
+static ValueType genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp);
 
 static int getArgIndex(Func *func, const char *name) {
 	for(int i=0; i<func->argc; i++) {
@@ -11,65 +11,63 @@ static int getArgIndex(Func *func, const char *name) {
 	return -1;
 }
 
-static void genIntValue(Cons *cons, CodeBuilder *cb, int sp) {
+static ValueType gen(Cons *cons, CodeBuilder *cb, int sp, bool spawn = false) {
 	if(cons->type == CONS_INT) {
 		cb->createIConst(sp, cons->i);
+		return VT_INT;
 	} else if(cons->type == CONS_STR) {
 		const char *name = cons->str;
 		if(strcmp(name, "t") == 0) {
 			cb->createIConst(sp, 1);
-			return;
+			return VT_BOOLEAN;
 		}
 		if(strcmp(name, "nil") == 0) {
 			cb->createIConst(sp, 0);
-			return;
+			return VT_BOOLEAN;
 		}
 		if(cb->getFunc() != NULL) {
 			int n = getArgIndex(cb->getFunc(), name);
 			if(n != -1) {
 				cb->createMov(sp, n);
-				return;
+				return VT_INT;
 			}
 		}
 		Variable *var = cb->getCtx()->getVar(name);
 		if(var != NULL) {
 			cb->createLoadGlobal(var, sp);
-			return;
+			return var->type;
 		}
 		fprintf(stderr, "symbol not found: %s\n", cons->str);
 		exit(1);
 	} else if(cons->type == CONS_CAR) {
-		cb->codegen(cons, sp);
+		if(spawn) {
+			const char *name = cons->car->str;
+			Func *func = cb->getCtx()->getFunc(name);
+			if(func != NULL) {
+				return genSpawn(func, cons->car->cdr, cb, sp);
+			}
+		}
+		return cb->codegen(cons, sp);
 	} else {
 		fprintf(stderr, "integer require\n");
 		exit(1);
 	}
 }
 
-static bool genIntTask(Cons *cons, CodeBuilder *cb, int sp) {
-	if(cons->type == CONS_CAR) {
-		const char *name = cons->car->str;
-		Func *func = cb->getCtx()->getFunc(name);
-		assert(func != NULL);
-		//if(func->code != NULL) {
-			genSpawn(func, cons->car->cdr, cb, sp);
-			return true;
-		//}
+static ValueType genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	if(cons == NULL) {
+		cb->createIConst(sp, 0);
+		return VT_INT;
 	}
-	genIntValue(cons, cb, sp);
-	return false;
-}
-
-static void genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	if(cons == NULL) return;
-	bool tf = genIntTask(cons, cb, sp);
+	ValueType vt = gen(cons, cb, sp, cons->cdr != NULL);
 	cons = cons->cdr;
+	bool tf = vt == VT_FUTURE;
 	for(; cons != NULL; cons = cons->cdr) {
 		if(cons->type == CONS_INT) {
 			cb->createIAddC(sp, cons->i);
 		} else {
 			int sft = tf ? 3 : 1;
-			genIntValue(cons, cb, sp + sft);
+			gen(cons, cb, sp + sft);
 			if(tf) {
 				cb->createJoin(sp);
 				tf = false;
@@ -77,51 +75,56 @@ static void genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 			cb->createIAdd(sp, sp + sft);
 		}
 	}
+	return VT_INT;
 }
 
-static void genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	if(cons == NULL) return;
-	genIntValue(cons, cb, sp);
+static ValueType genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	if(cons == NULL) return VT_INT;
+	gen(cons, cb, sp);
 	cons = cons->cdr;
 	if(cons == NULL) {
 		cb->createINeg(sp);
-		return;
+		return VT_INT;
 	}
 	for(; cons != NULL; cons = cons->cdr) {
 		if(cons->type == CONS_INT) {
 			cb->createISubC(sp, cons->i);
 		} else {
-			genIntValue(cons, cb, sp + 1);
+			gen(cons, cb, sp + 1);
 			cb->createISub(sp, sp + 1);
 		}
 	}
+	return VT_INT;
 }
 
-static void genMul(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	genIntValue(cons, cb, sp);
+static ValueType genMul(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	gen(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		genIntValue(cons, cb, sp + 1);
+		gen(cons, cb, sp + 1);
 		cb->createIMul(sp, sp + 1);
 	}
+	return VT_INT;
 }
 
-static void genDiv(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	genIntValue(cons, cb, sp);
+static ValueType genDiv(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	gen(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		genIntValue(cons, cb, sp + 1);
+		gen(cons, cb, sp + 1);
 		cb->createIDiv(sp, sp + 1);
 	}
+	return VT_INT;
 }
 
-static void genMod(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	genIntValue(cons, cb, sp);
+static ValueType genMod(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	gen(cons, cb, sp);
 	cons = cons->cdr;
 	for(; cons != NULL; cons = cons->cdr) {
-		genIntValue(cons, cb, sp + 1);
+		gen(cons, cb, sp + 1);
 		cb->createIMod(sp, sp + 1);
 	}
+	return VT_INT;
 }
 
 static int toOp(const char *s) {
@@ -145,7 +148,7 @@ static int toOpC(const char *s) {
 }
 
 // FIXME
-static void genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Cons *cond = cons;
 	cons = cons->cdr;
 	Cons *thenCons = cons;
@@ -156,30 +159,31 @@ static void genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	if(cond->type == CONS_CAR && (op = toOp(cond->car->str)) != -1) {
 		Cons *lhs = cond->car->cdr;
 		Cons *rhs = lhs->cdr;
-		genIntValue(lhs, cb, sp);
+		gen(lhs, cb, sp);
 		if(rhs->type == CONS_INT) {
 			op = toOpC(cond->car->str);
 			label = cb->createCondOpC(op, sp, rhs->i);
 		} else {
-			genIntValue(rhs, cb, sp + 1);
+			gen(rhs, cb, sp + 1);
 			label = cb->createCondOp(op, sp, sp+1);
 		}
 	} else {
-		genIntValue(cond, cb, sp);
+		gen(cond, cb, sp);
 		cb->createIConst(sp + 1, 0); /* nil */
 		op = INS_IJMPEQ;
 		label = cb->createCondOp(op, sp, sp+1);
 	}
 
 	// then expr
-	genIntValue(thenCons, cb, sp);
+	gen(thenCons, cb, sp);
 	int merge = cb->createJmp();
 
 	// else expr
 	cb->setLabel(label);
-	genIntValue(elseCons, cb, sp);
+	gen(elseCons, cb, sp);
 
 	cb->setLabel(merge);
+	return VT_INT;
 }
 
 static const char *newStr(const char *ss) {
@@ -208,26 +212,28 @@ static Func *newFunc(const char *name, Cons *args, CodeGenFunc gen) {
 }
 
 #define RSFT 2
-static void genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
+static ValueType genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 	int n = 0;
 	for(; cons != NULL; cons = cons->cdr) {
-		genIntValue(cons, cb, sp + RSFT + n);
+		gen(cons, cb, sp + RSFT + n);
 		n++;
 	}
 	cb->createCall(func, sp + RSFT);
+	return VT_INT;
 }
 
 #define SRSFT 3
-static void genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
+static ValueType genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 	int n = 0;
 	for(; cons != NULL; cons = cons->cdr) {
-		genIntValue(cons, cb, sp + SRSFT + n);
+		gen(cons, cb, sp + SRSFT + n);
 		n++;
 	}
 	cb->createSpawn(func, sp + SRSFT);
+	return VT_FUTURE;
 }
 
-static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+static ValueType genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	assert(cons->type == CONS_STR);
 	const char *name = cons->str;
 	cons = cons->cdr;
@@ -238,8 +244,9 @@ static void genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	v->value.i = 0;
 	cb->getCtx()->putVar(v);
 
-	genIntValue(expr, cb, sp);
+	gen(expr, cb, sp);
 	cb->createStoreGlobal(v, sp);
+	return VT_VOID;
 }
 
 struct Frame {
@@ -394,7 +401,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	func->code = cb.getCode();
 }
 
-static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	const char *name = cons->str;
 	cons = cons->cdr;
 	Cons *args = cons->car;
@@ -411,6 +418,7 @@ static void genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	func->code = newCb.getCode();
 
 	opt_inline(ctx, func, INLINE_DEPTH);
+	return VT_VOID;
 }
 
 void addDefaultFuncs(Context *ctx) {

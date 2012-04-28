@@ -127,16 +127,16 @@ Code *CodeBuilder::getCode() {
 	return codebuf.toArray();
 }
 
-void CodeBuilder::codegen(Cons *cons, int sp) {
+ValueType CodeBuilder::codegen(Cons *cons, int sp) {
 	if(cons->type == CONS_CAR) {
-		codegen(cons->car, sp);
+		return codegen(cons->car, sp);
 	} else {
 		assert(cons->type == CONS_STR);
 		const char *name = cons->str;
 		Cons *args = cons->cdr;
 		Func *func = ctx->getFunc(name);
 		assert(func != NULL);
-		func->codegen(func, args, this, sp);
+		return func->codegen(func, args, this, sp);
 	}
 }
 

@@ -43,7 +43,7 @@ public:
 	int  createJmp();
 	void setLabel(int n);
 	Code *getCode();
-	void codegen(Cons *cons, int sp);
+	ValueType codegen(Cons *cons, int sp);
 	Context *getCtx() { return ctx; }
 	Func *getFunc()   { return func; }
 };
