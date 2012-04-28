@@ -41,6 +41,6 @@ I(RET)
 I(JOIN)
 // print [r1] for debug
 I(IPRINT)
-I(TNILPRINT)
+I(BPRINT)
 I(END)
 

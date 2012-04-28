@@ -375,8 +375,8 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 		break;
 	}
 	case INS_JOIN: cb.createJoin(pc[1].i + sp); pc += 2; break;
-	case INS_IPRINT:    break;//TODO
-	case INS_TNILPRINT: break;//TODO
+	case INS_IPRINT: cb.createPrintInt(pc[1].i + sp); pc += 2; break;
+	case INS_BPRINT: cb.createPrintBoolean(pc[1].i + sp); pc += 2; break;
 	case INS_END: {
 		if(layer == 0) {
 			cb.createEnd();
