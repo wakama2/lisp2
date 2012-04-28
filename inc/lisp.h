@@ -5,8 +5,6 @@
 // configuration
 
 #define USING_THCODE
-#define TASK_MAX   			20
-#define TASKQUEUE_MAX   32 /* must be 2^n */
 #define TASK_STACKSIZE 1024*4
 
 //------------------------------------------------------

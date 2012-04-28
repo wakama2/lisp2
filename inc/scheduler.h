@@ -41,6 +41,7 @@ private:
 	Task **taskq;
 	int taskEnqIndex;
 	int taskDeqIndex;
+	int queuemask;
 	pthread_mutex_t tl_lock;
 	pthread_cond_t  tl_cond;
 	Task *taskpool;

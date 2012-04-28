@@ -15,20 +15,11 @@ static void *WorkerThread_main(void *arg) {
 //------------------------------------------------------
 Scheduler::Scheduler(Context *ctx) {
 	this->ctx = ctx;
-	this->taskq = new Task *[TASKQUEUE_MAX];
 	this->taskEnqIndex = 0;
 	this->taskDeqIndex = 0;
 	this->dead_flag = false;
 	pthread_mutex_init(&tl_lock, NULL);
 	pthread_cond_init(&tl_cond, NULL);
-
-	// init task list
-	taskpool = new Task[TASK_MAX];
-	freelist = &taskpool[0];
-	for(int i=0; i<TASK_MAX; i++) {
-		taskpool[i].next = &taskpool[i+1];
-	}
-	taskpool[TASK_MAX - 1].next = NULL;
 }
 
 Scheduler::~Scheduler() {
@@ -47,6 +38,21 @@ Scheduler::~Scheduler() {
 }
 
 void Scheduler::initWorkers() {
+	int TASK_MAX = ctx->workers * 3 / 2;
+	int TASKQUEUE_MAX = 1;
+	for(int i=TASK_MAX; i!=0; i>>=1) {
+		TASKQUEUE_MAX<<=1; // max must be 2^n
+	}
+	queuemask = TASKQUEUE_MAX-1;
+	// init tasks
+	taskq = new Task *[TASKQUEUE_MAX];
+	taskpool = new Task[TASK_MAX];
+	freelist = &taskpool[0];
+	for(int i=0; i<TASK_MAX; i++) {
+		taskpool[i].next = &taskpool[i+1];
+	}
+	taskpool[TASK_MAX - 1].next = NULL;
+
 	// start worker threads
 	wthpool = new WorkerThread[ctx->workers];
 	for(int i=0; i<ctx->workers; i++) {
@@ -61,8 +67,8 @@ void Scheduler::initWorkers() {
 //------------------------------------------------------
 void Scheduler::enqueue(Task *task) {
 	pthread_mutex_lock(&tl_lock);
-	int n = taskEnqIndex++ & (TASKQUEUE_MAX - 1);
-	taskq[n] = task;
+	int n = taskEnqIndex++;
+	taskq[n & queuemask] = task;
 	pthread_cond_signal(&tl_cond); /* notify a thread in dequeue */
 	pthread_mutex_unlock(&tl_lock);
 }
@@ -75,8 +81,8 @@ Task *Scheduler::dequeue() {
 			if(dead_flag) goto L_FINAL;
 			pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
 		}
-		int n = (taskDeqIndex++) & (TASKQUEUE_MAX - 1);
-		task = taskq[n];
+		int n = taskDeqIndex++;
+		task = taskq[n & queuemask];
 	}
 L_FINAL:
 	pthread_mutex_unlock(&tl_lock);
