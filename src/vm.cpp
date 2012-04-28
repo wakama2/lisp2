@@ -27,6 +27,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 #endif
 	register Code *pc  = task->pc;
 	register Value *sp = task->sp;
+	Scheduler *sche = wth->sche;
 
 	SWITCHBEGIN;
 
@@ -113,25 +114,26 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(SPAWN) {
-		Scheduler *sche = wth->sche;
-		Task *t = sche->newTask(pc[1].func, sp + pc[2].i, do_nothing);
-		sp[pc[2].i - 3].task = t;
-		if(t == NULL) {
-			// CALL
-			register Value *sp2 = sp;
-			sp += pc[2].i;
-			sp[-2].sp = sp2;
-			sp[-1].pc = pc + 3;
-			pc = pc[1].func->code;
-		} else {
-			// spawn
-			sche->enqueue(t);
-			pc += 3;
+		if(!sche->isTaskEmpty()) {
+			Task *t = sche->newTask(pc[1].func, sp + pc[2].i, do_nothing);
+			if(t != NULL) {
+				// spawn
+				sp[pc[2].i - 3].task = t;
+				sche->enqueue(t);
+				pc += 3;
+				NEXT();
+			}
 		}
+		sp[pc[2].i - 3].task = NULL;
+		// CALL
+		register Value *sp2 = sp;
+		sp += pc[2].i;
+		sp[-2].sp = sp2;
+		sp[-1].pc = pc + 3;
+		pc = pc[1].func->code;
 	} NEXT();
 
 	CASE(JOIN) {
-		Scheduler *sche = wth->sche;
 		register int res = pc[1].i;
 		Task *t = sp[res].task;
 		if(t != NULL) {

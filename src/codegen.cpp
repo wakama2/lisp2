@@ -44,7 +44,7 @@ ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn) {
 		Func *func = cb->getCtx()->getFunc(name);
 		assert(func != NULL);
 		Cons *args = cons->car->cdr;
-		if(spawn) {
+		if(spawn && func->args != NULL) {
 			return genSpawn(func, cons->car->cdr, cb, sp);
 		} else {
 			return func->codegen(func, args, cb, sp);
@@ -67,7 +67,7 @@ static ValueType genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		if(cons->type == CONS_INT) {
 			cb->createIAddC(sp, cons->i);
 		} else {
-			int sft = tf ? 3 : 1;
+			int sft = tf ? 2 : 1;
 			codegen(cons, cb, sp + sft);
 			if(tf) {
 				cb->createJoin(sp);
@@ -243,12 +243,26 @@ static Func *newFunc(const char *name, Cons *args, CodeGenFunc gen) {
 
 #define RSFT 2
 static ValueType genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
+	ArrayBuilder<ValueType> vals;
 	int n = 0;
+	sp += RSFT;
 	for(; cons != NULL; cons = cons->cdr) {
-		codegen(cons, cb, sp + RSFT + n);
-		n++;
+		ValueType v = codegen(cons, cb, sp + n, cons->cdr != NULL);
+		vals.add(v);
+		n += v == VT_FUTURE ? 2 : 1;
 	}
-	cb->createCall(func, sp + RSFT);
+	n = 0;
+	for(int i=0, j=vals.getSize(); i<j; i++) {
+		if(vals[i] == VT_FUTURE) {
+			cb->createJoin(sp + n);
+			if(n != i) cb->createMov(sp + i, sp + n);
+			n += 2;
+		} else {
+			if(n != i) cb->createMov(sp + i, sp + n);
+			n += 1;
+		}
+	}
+	cb->createCall(func, sp);
 	return VT_INT;
 }
 
@@ -298,7 +312,7 @@ struct Label {
 static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 	CodeBuilder cb(ctx, func, fin);
 	Code *pc = func->code;
-	Frame *frame = new Frame[inlinecnt];
+	Frame *frame = new Frame[inlinecnt + 1];
 	Frame *fp = frame;
 	ArrayBuilder<Label> la;
 	int sp = 0;

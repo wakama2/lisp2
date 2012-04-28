@@ -55,6 +55,7 @@ public:
 	Task *dequeue();
 	Task *newTask(Func *func, Value *args, TaskMethod dest);
 	void deleteTask(Task *task);
+	bool isTaskEmpty() { return freelist == NULL; }
 	Context *getCtx() { return ctx; }
 };
 
