@@ -18,76 +18,55 @@ static int toLower(char ch) {
 Tokenizer::Tokenizer(Reader *r) {
 	this->reader = r;
 	this->linenum = 0;
-	this->ch = r->read();
-	this->nextch = r->read();
-	if(ch != EOF) {
-		linebuf.add(ch);
-	}
+	this->nextch = ' ';
 }
 
-int Tokenizer::seek() {
-	ch = nextch;
-	if(ch == '\n') {
+void Tokenizer::nextChar() {
+	this->nextch = reader->read();
+	if(nextch == '\n') {
 		linenum++;
 		linebuf.clear();
-	} else if(ch != EOF) {
-		linebuf.add(ch);
+	} else if(nextch != EOF) {
+		linebuf.add(nextch);
 	}
-	nextch = reader->read();
-	return ch;
 }
 
-bool Tokenizer::isEof() {
-	while(isSpace(ch)) seek();
-	return ch == EOF;
-}
-
-bool Tokenizer::isIntToken(int *n) {
-	while(isSpace(ch)) seek();
-	if(ch == '-' && isNumber(nextch)) {
-		seek();
-		isIntToken(n);
-		*n = -(*n);
-		return true;
-	} else if(ch == '+' && isNumber(nextch)) {
-		seek();
-		return isIntToken(n);
-	} else if(isNumber(ch)) {
-		int num = 0;
-		do {
-			num = num * 10 + (ch - '0');
-		} while(isNumber(seek()));
-		*n = num;
-		return true;
+TokenType Tokenizer::nextToken() {
+	while(isSpace(nextch)) nextChar();
+	tokenbuf.clear();
+	if(nextch == '(' || nextch == ')') {
+		tokenbuf.add(nextch);
+		TokenType tt = nextch == '(' ? TT_OPEN : TT_CLOSE;
+		nextChar();
+		return tt;
+	} else if(nextch == EOF) {
+		return TT_EOF;
 	} else {
-		return false;
+		while(!(isSpace(nextch) || nextch == ')' || nextch == '(' || nextch == EOF)) {
+			tokenbuf.add(toLower(nextch));
+			nextChar();
+		}
+		tokenbuf.add('\0');
+		// is integer ?
+		int i = 0, num = 0;
+		bool isint = false;
+		if(tokenbuf.getSize() > 1 && (tokenbuf[0] == '+' || tokenbuf[0] == '-')) i++;
+		for(; i<tokenbuf.getSize()-1; i++) {
+			if(isNumber(tokenbuf[i])) {
+				num = num * 10 + (tokenbuf[i] - '0');
+				isint = true;
+			} else {
+				isint = false;
+				break;
+			}
+		}
+		if(isint) {
+			if(tokenbuf[0] == '-') num = -num;
+			this->ival = num;
+			return TT_INT;
+		}
+		return TT_STR;
 	}
-}
-
-bool Tokenizer::isSymbol(char c) {
-	while(isSpace(ch)) seek();
-	if(ch == c) {
-		seek();
-		return true;
-	} else {
-		return false;
-	}
-}
-
-bool Tokenizer::isStrToken(const char **strp) {
-	while(isSpace(ch)) seek();
-	char str[256];
-	int len = 0;
-	while(!(isSpace(ch) || ch == ')' || ch == '(' || ch == EOF)) {
-		str[len++] = toLower(ch);
-		seek();
-	}
-	if(len == 0) return false;
-	str[len] = '\0';
-	char *str2 = new char[len + 1];
-	strcpy(str2, str);
-	*strp = str2;
-	return true;
 }
 
 void Tokenizer::printErrorMsg(const char *msg) {
@@ -101,47 +80,38 @@ void Tokenizer::printErrorMsg(const char *msg) {
 }
 
 //------------------------------------------------------
-static bool parseError(Tokenizer *tk, const char *msg) {
-	tk->printErrorMsg(msg);
-	return false;
-}
 
 bool parseCons(Tokenizer *tk, Cons **res) {
-	if(tk->isSymbol('(')) {
-		Cons *c = new Cons(CONS_CAR);
-		if(tk->isSymbol(')')) {
-			c->car = NULL;
-		} else if(parseCons(tk, &c->car)) {
-			Cons *cc = c->car;
-			while(!tk->isSymbol(')')) {
-				if(parseCons(tk, &cc->cdr)) {
-					cc = cc->cdr;
-				} else {
-					cons_free(c);
-					return false;
-				}
+	TokenType tt = tk->nextToken();
+	if(tt == TT_OPEN) {
+		Cons *cons = new Cons(CONS_CAR);
+		Cons **c = &cons->car;
+		while(parseCons(tk, c)) {
+			if(*c == NULL) {
+				*res = cons;
+				return true;
 			}
-		} else {
-			cons_free(c);
-			return false;
+			c = &((*c)->cdr);
 		}
-		*res = c;
-		return true;
-	}
-	int n;
-	if(tk->isIntToken(&n)) {
+		cons_free(cons);
+		return false;
+	} else if(tt == TT_CLOSE) {
+		*res = NULL;
+	} else if(tt == TT_INT) {
 		Cons *c = new Cons(CONS_INT);
-		c->i = n;
+		c->i = tk->ival;
 		*res = c;
-		return true;
-	}
-	const char *str;
-	if(tk->isStrToken(&str)) {
+	} else if(tt == TT_FLOAT) {
+		Cons *c = new Cons(CONS_FLOAT);
+		c->f = tk->fval;
+		*res = c;
+	} else if(tt == TT_STR) {
 		Cons *c = new Cons(CONS_STR);
-		c->str = str;
+		c->str = tk->sval();
 		*res = c;
-		return true;
+	} else if(tt == TT_EOF) {
+		return false;
 	}
-	return parseError(tk, "parse error");
+	return true;
 }
 

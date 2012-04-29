@@ -2,7 +2,7 @@
 #define PARSE_H
 
 //------------------------------------------------------
-// parser
+// reader
 
 class Reader {
 public:
@@ -10,23 +10,40 @@ public:
 	virtual int read() = 0;
 };
 
+//------------------------------------------------------
+// tokenizer
+
+enum TokenType {
+	TT_INT,
+	TT_FLOAT,
+	TT_STR,
+	TT_OPEN,
+	TT_CLOSE,
+	TT_EOF,
+};
+
 class Tokenizer {
 private:
 	Reader *reader;
-	int nextch;
-	int ch;
 	int linenum;
+	int nextch;
 	ArrayBuilder<char> linebuf;
-	ArrayBuilder<char> tokenbuf;
-
-	int seek();
-
 public:
+	ArrayBuilder<char> tokenbuf;
+	union {
+		int ival;
+		double fval;
+	};
+	const char *sval() { return tokenbuf.toArray(); }
+
 	Tokenizer(Reader *r);
-	bool isIntToken(int *n);
-	bool isSymbol(char ch);
-	bool isStrToken(const char **);
-	bool isEof();
+	void nextChar();
+	TokenType nextToken();
+
+	//bool isIntToken(int *n);
+	//bool isSymbol(char ch);
+	//bool isStrToken(const char **);
+	//bool isEof();
 	void printErrorMsg(const char *msg);
 };
 

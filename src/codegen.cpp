@@ -40,9 +40,16 @@ ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn) {
 		fprintf(stderr, "symbol not found: %s\n", cons->str);
 		throw "";
 	} else if(cons->type == CONS_CAR) {
+		if(cons->car == NULL || cons->car->type != TT_STR) {
+			fprintf(stderr, "not function\n");
+			throw "";
+		}
 		const char *name = cons->car->str;
 		Func *func = cb->getCtx()->getFunc(name);
-		assert(func != NULL);
+		if(func == NULL) {
+			fprintf(stderr, "not function\n");
+			throw "";
+		}
 		Cons *args = cons->car->cdr;
 		if(spawn && func->args != NULL) {
 			return genSpawn(func, cons->car->cdr, cb, sp);

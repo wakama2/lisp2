@@ -133,6 +133,7 @@ void addDefaultFuncs(Context *ctx);
 
 enum ConsType {
 	CONS_INT,
+	CONS_FLOAT,
 	CONS_STR,
 	CONS_CAR,
 };
@@ -141,6 +142,7 @@ struct Cons {
 	ConsType type;
 	union {
 		int i;
+		double f;
 		const char *str;
 		Cons *car;
 	};

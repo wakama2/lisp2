@@ -81,14 +81,12 @@ static void runCons(Context *ctx, Cons *cons) {
 static void compileAndRun(Context *ctx, Reader *r) {
 	Tokenizer tk(r);
 	Cons *res;
-	while(!tk.isEof()) {
-		if(parseCons(&tk, &res)) {
+	while(parseCons(&tk, &res)) {
+		if(res != NULL) {
 			res->cdr = NULL;
 			//cons_println(res);
 			runCons(ctx, res);
 			cons_free(res);
-		} else {
-			break;
 		}
 	}
 }

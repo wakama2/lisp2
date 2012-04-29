@@ -32,6 +32,13 @@ public:
 		assert(n < size);
 		return data[n];
 	}
+	T get(size_t n) {
+		assert(n < size);
+		return data[n];
+	}
+	T getOrElse(size_t n, T def) {
+		return n < size ? data[n] : def;
+	}
 	int  getSize() {
 		return size;
 	}
