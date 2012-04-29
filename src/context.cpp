@@ -21,7 +21,7 @@ Context::~Context() {
 		for(int i=0; i<l->argc; i++) {
 			delete [] l->args[i];
 		}
-		if(l->argc != 0) delete l->args;
+		if(l->argc != 0) delete [] l->args;
 		delete [] l->name;
 		if(l->code != NULL) delete [] l->code;
 		delete l;

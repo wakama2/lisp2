@@ -109,7 +109,9 @@ static bool parseError(Tokenizer *tk, const char *msg) {
 bool parseCons(Tokenizer *tk, Cons **res) {
 	if(tk->isSymbol('(')) {
 		Cons *c = new Cons(CONS_CAR);
-		if(parseCons(tk, &c->car)) {
+		if(tk->isSymbol(')')) {
+			c->car = NULL;
+		} else if(parseCons(tk, &c->car)) {
 			Cons *cc = c->car;
 			while(!tk->isSymbol(')')) {
 				if(parseCons(tk, &cc->cdr)) {

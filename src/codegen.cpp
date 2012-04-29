@@ -68,7 +68,10 @@ static ValueType genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 			cb->createIAddC(sp, cons->i);
 		} else {
 			int sft = tf ? 2 : 1;
-			codegen(cons, cb, sp + sft);
+			if(codegen(cons, cb, sp + sft) != VT_INT) {
+				fprintf(stderr, "not integer\n");
+				throw "";
+			}
 			if(tf) {
 				cb->createJoin(sp);
 				tf = false;
@@ -91,7 +94,10 @@ static ValueType genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		if(cons->type == CONS_INT) {
 			cb->createISubC(sp, cons->i);
 		} else {
-			codegen(cons, cb, sp + 1);
+			if(codegen(cons, cb, sp + 1) != VT_INT) {
+				fprintf(stderr, "not integer\n");
+				throw "";
+			}
 			cb->createISub(sp, sp + 1);
 		}
 	}
@@ -288,9 +294,9 @@ static ValueType genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	v->value.i = 0;
 	cb->getCtx()->putVar(v);
 
-	codegen(expr, cb, sp);
+	v->type = codegen(expr, cb, sp);
 	cb->createStoreGlobal(v, sp);
-	return VT_VOID;
+	return v->type;
 }
 
 struct Frame {
@@ -451,7 +457,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 	case INS_RETC: {
 		if(layer > 0) {
 			cb.createIConst(sp-2, pc[1].i);
-			pc += 2;
+			pc += 3;
 			// goto end
 			if(pc->i != INS_END) {
 				int n = cb.createJmp();
@@ -459,7 +465,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 			}
 		} else {
 			cb.createRetC(pc[1].i);
-			pc += 2;
+			pc += 3;
 		}
 		break;
 	}

@@ -111,6 +111,7 @@ static void runInteractive(Context *ctx) {
 	while(true) {
 		char *in = readline(">>");
 		if(in == NULL || strcmp(in, "exit") == 0 || strcmp(in, "quit") == 0) {
+			if(in != NULL) free(in);
 			break;
 		}
 		CharReader r(in);
