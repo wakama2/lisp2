@@ -1,9 +1,6 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-//------------------------------------------------------
-// code generator
-
 class CodeBuilder {
 private:
 	Context *ctx;

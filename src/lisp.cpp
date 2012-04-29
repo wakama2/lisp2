@@ -52,28 +52,29 @@ static void runCons(Context *ctx, Cons *cons) {
 	Func *func = new Func();
 	func->name = "__script";
 	func->argc = 0;
-	CodeBuilder *cb = new CodeBuilder(ctx, func, true);
-	ValueType ty = codegen(cons, cb, 0);
-	if(ty == VT_INT) {
-		cb->createPrintInt(0);
-	} else if(ty == VT_BOOLEAN) {
-		cb->createPrintBoolean(0);
+	try {
+		CodeBuilder cb(ctx, func, true);
+		ValueType ty = codegen(cons, &cb, 0);
+		if(ty == VT_INT) {
+			cb.createPrintInt(0);
+		} else if(ty == VT_BOOLEAN) {
+			cb.createPrintBoolean(0);
+		}
+		cb.createRet(0);
+		func->code = cb.getCode();
+
+		Scheduler *sche = ctx->sche;
+		Task *task = sche->newTask(func, NULL, notify_runCons);
+		assert(task != NULL);
+		pthread_mutex_lock(&g_lock);
+		sche->enqueue(task);
+		pthread_cond_wait(&g_cond, &g_lock);
+		pthread_mutex_unlock(&g_lock);
+		sche->deleteTask(task);
+		delete [] func->code;
+	} catch(char *str) {
 	}
-	cb->createRet(0);
-	func->code = cb->getCode();
-
-	Scheduler *sche = ctx->sche;
-	Task *task = sche->newTask(func, NULL, notify_runCons);
-	assert(task != NULL);
-	pthread_mutex_lock(&g_lock);
-	sche->enqueue(task);
-	pthread_cond_wait(&g_cond, &g_lock);
-	pthread_mutex_unlock(&g_lock);
-
-	sche->deleteTask(task);
-	delete [] func->code;
 	delete func;
-	delete cb;
 }
 
 //------------------------------------------------------

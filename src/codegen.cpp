@@ -38,7 +38,7 @@ ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn) {
 			return var->type;
 		}
 		fprintf(stderr, "symbol not found: %s\n", cons->str);
-		exit(1);
+		throw "";
 	} else if(cons->type == CONS_CAR) {
 		const char *name = cons->car->str;
 		Func *func = cb->getCtx()->getFunc(name);
@@ -51,7 +51,7 @@ ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn) {
 		}
 	} else {
 		fprintf(stderr, "integer require\n");
-		exit(1);
+		throw "";
 	}
 }
 
@@ -322,7 +322,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 		Label l = la[i];
 		if(pc == l.pc && layer == l.layer) {
 			cb.setLabel(l.lb);
-			l.pc = NULL;
+			la[i].pc = NULL;
 		}
 	}
 	switch(pc->i) {
@@ -348,7 +348,17 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 		}
 		break;
 	}
-	case INS_MOV: cb.createMov(pc[1].i + sp, pc[2].i + sp);  pc += 3; break;
+	case INS_MOV: {
+		//if(pc[3].i == INS_MOV && pc[1].i == pc[5].i) {
+		//	// mov b a && mov c b -> mov c a
+		//	cb.createMov(pc[4].i + sp, pc[2].i + sp);
+		//	pc += 3 + 3;
+		//} else {
+			cb.createMov(pc[1].i + sp, pc[2].i + sp);
+			pc += 3;
+		//}
+		break;
+	}
 	case INS_IADD: 
 	case INS_ISUB: 
 	case INS_IMUL: 
@@ -510,7 +520,7 @@ void addDefaultFuncs(Context *ctx) {
 	ctx->putFunc(newFunc(">" , NULL, genGT));
 	ctx->putFunc(newFunc("<=", NULL, genLE));
 	ctx->putFunc(newFunc(">=", NULL, genGE));
-	ctx->putFunc(newFunc("==", NULL, genEQ));
+	ctx->putFunc(newFunc("=", NULL, genEQ));
 	ctx->putFunc(newFunc("!=", NULL, genNE));
 	ctx->putFunc(newFunc("if", NULL, genIf));
 	ctx->putFunc(newFunc("setq", NULL, genSetq));
