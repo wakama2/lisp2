@@ -62,7 +62,9 @@ static void runCons(Context *ctx, Cons *cons) {
 		}
 		cb.createRet(0);
 		func->code = cb.getCode();
-
+#ifdef USING_THCODE
+		func->thcode = func->code;
+#endif
 		Scheduler *sche = ctx->sche;
 		Task *task = sche->newTask(func, NULL, notify_runCons);
 		assert(task != NULL);

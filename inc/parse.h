@@ -39,11 +39,6 @@ public:
 	Tokenizer(Reader *r);
 	void nextChar();
 	TokenType nextToken();
-
-	//bool isIntToken(int *n);
-	//bool isSymbol(char ch);
-	//bool isStrToken(const char **);
-	//bool isEof();
 	void printErrorMsg(const char *msg);
 };
 

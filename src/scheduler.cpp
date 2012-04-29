@@ -97,7 +97,11 @@ Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 		if(CAS(freelist, oldtop, newtop)) {
 			// init
 			Task *task = oldtop;
+#ifdef USING_THCODE
+			task->pc = func->thcode;
+#else
 			task->pc = func->code;
+#endif
 			task->sp = task->stack;
 			task->dest = dest;
 			task->stat = TASK_RUN;

@@ -322,8 +322,8 @@ struct Label {
 		la.add(l); \
 	}
 
-static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
-	CodeBuilder cb(ctx, func, fin);
+static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
+	CodeBuilder cb(ctx, func, false);
 	Code *pc = func->code;
 	Frame *frame = new Frame[inlinecnt + 1];
 	Frame *fp = frame;
@@ -501,6 +501,93 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool fin) {
 	func->code = cb.getCode();
 }
 
+#ifdef USING_THCODE
+static void opt_thcode(Context *ctx, Func *func) {
+	CodeBuilder cb(ctx, func, true);
+	Code *pc = func->code;
+
+	L_BEGIN:
+	switch(pc->i) {
+		// int ins
+	case INS_ICONST:
+	case INS_IADDC:
+	case INS_ISUBC:
+	case INS_RETC:
+		cb.createIntIns(pc[0].i, pc[1].i, pc[2].i);
+		pc += 3;
+		break;
+
+		// reg2ins
+	case INS_MOV:
+	case INS_IADD:
+	case INS_ISUB:
+	case INS_IMUL:
+	case INS_IDIV:
+	case INS_IMOD:
+		cb.createReg2Ins(pc[0].i, pc[1].i, pc[2].i);
+		pc += 3;
+		break;
+
+		// regins
+	case INS_INEG:
+	case INS_RET:
+	case INS_JOIN:
+	case INS_IPRINT:
+	case INS_BPRINT:
+		cb.createRegIns(pc[0].i, pc[1].i);
+		pc += 2;
+		break;
+
+// jmp pc+[r1] if [r1] < [r2]
+	case INS_IJMPLT:
+	case INS_IJMPLE:
+	case INS_IJMPGT:
+	case INS_IJMPGE:
+	case INS_IJMPEQ:
+	case INS_IJMPNE:
+		cb.createCondOp(pc[0].i, pc[2].i, pc[3].i, pc[1].i);
+		pc += 4;
+		break;
+
+// jmp pc+[r1] if [r1] < v2
+	case INS_IJMPLTC:
+	case INS_IJMPLEC:
+	case INS_IJMPGTC:
+	case INS_IJMPGEC:
+	case INS_IJMPEQC:
+	case INS_IJMPNEC:
+		cb.createCondOpC(pc[0].i, pc[2].i, pc[3].i, pc[1].i);
+		pc += 4;
+		break;
+
+// jmp pc+[r1]
+	case INS_JMP:
+		cb.createJmp(pc[1].i);
+		pc += 2;
+		break;
+
+// global variable [var] [r1]
+	case INS_LOAD_GLOBAL:
+	case INS_STORE_GLOBAL:
+		cb.createVarIns(pc[0].i, pc[1].i, pc[2].var);
+		pc += 3;
+		break;
+// call [func], shift, rix
+	case INS_CALL:
+	case INS_SPAWN:
+		cb.createFuncIns(pc[0].i, pc[1].func, pc[2].i);
+		pc += 3;
+		break;
+	case INS_END:
+		cb.createEnd();
+		goto L_FINAL;
+	}
+	goto L_BEGIN;
+	L_FINAL:
+	func->thcode = cb.getCode();
+}
+#endif
+
 static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	const char *name = cons->str;
 	cons = cons->cdr;
@@ -511,15 +598,19 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Context *ctx = cb->getCtx();
 	ctx->putFunc(func);
 
-	CodeBuilder newCb(ctx, func);
+	CodeBuilder newCb(ctx, func, false);
 	codegen(cons, &newCb, func->argc);
 	newCb.createRet(func->argc);
 	newCb.createEnd();
 	func->code = newCb.getCode();
 
-	opt_inline(ctx, func, ctx->inlinecount, false);
-	//opt_inline(ctx, func, 0, false);
-	opt_inline(ctx, func, 0, true);
+	opt_inline(ctx, func, ctx->inlinecount);
+	for(int i=0; i<2; i++) {
+		opt_inline(ctx, func, 0);
+	}
+#ifdef USING_THCODE
+	opt_thcode(ctx, func);
+#endif
 	return VT_VOID;
 }
 
@@ -534,6 +625,8 @@ void addDefaultFuncs(Context *ctx) {
 	ctx->putFunc(newFunc("<=", NULL, genLE));
 	ctx->putFunc(newFunc(">=", NULL, genGE));
 	ctx->putFunc(newFunc("=", NULL, genEQ));
+	ctx->putFunc(newFunc("eq", NULL, genEQ));
+	ctx->putFunc(newFunc("equal", NULL, genEQ));
 	ctx->putFunc(newFunc("!=", NULL, genNE));
 	ctx->putFunc(newFunc("if", NULL, genIf));
 	ctx->putFunc(newFunc("setq", NULL, genSetq));

@@ -7,7 +7,7 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 	if(ctx->flagShowIR) {
 		printf("//----------------------------//\n");
 		if(func != NULL) {
-			printf("* defun %s argc=%d\n", func->name, func->argc);
+			printf("* defun %s argc=%d %s\n", func->name, func->argc, genthc ? "[TH]":"");
 		}
 	}
 }
@@ -82,37 +82,37 @@ void CodeBuilder::createFuncIns(int ins, Func *func, int sftsfp) {
 	ADD(i, sftsfp);
 }
 
-int CodeBuilder::createCondOp(int inst, int a, int b) {
+int CodeBuilder::createCondOp(int inst, int a, int b, int offset) {
 	int lb = ci;
 	if(ctx->flagShowIR) {
 		printf("%04d: %s\t[%d] [%d] L%d\n", ci, ctx->getInstName(inst), a, b, lb);
 	}
 	ADDINS(inst);
-	ADD(i, 0);
+	ADD(i, offset);
 	ADD(i, a);
 	ADD(i, b);
 	return lb;
 }
 
-int CodeBuilder::createCondOpC(int inst, int a, int b) {
+int CodeBuilder::createCondOpC(int inst, int a, int b, int offset) {
 	int lb = ci;
 	if(ctx->flagShowIR) {
 		printf("%04d: %s\t[%d] %d L%d\n", ci, ctx->getInstName(inst), a, b, lb);
 	}
 	ADDINS(inst);
-	ADD(i, 0);
+	ADD(i, offset);
 	ADD(i, a);
 	ADD(i, b);
 	return lb;
 }
 
-int CodeBuilder::createJmp() {
+int CodeBuilder::createJmp(int offset) {
 	int lb = ci;
 	if(ctx->flagShowIR) {
 		printf("%04d: %s\tL%d\n", ci, ctx->getInstName(INS_JMP), lb);
 	}
 	ADDINS(INS_JMP);
-	ADD(i, 0);
+	ADD(i, offset);
 	return lb;
 }
 

@@ -80,6 +80,9 @@ enum ValueType {
 typedef ValueType (*CodeGenFunc)(Func *, Cons *, CodeBuilder *, int sp);
 
 struct Func {
+#ifdef USING_THCODE
+	Code *thcode;
+#endif
 	Code *code;
 	const char *name;
 	int argc;

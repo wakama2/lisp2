@@ -9,7 +9,7 @@ private:
 	bool genthc;
 
 public:
-	CodeBuilder(Context *_ctx, Func *_func, bool genthc = false);
+	CodeBuilder(Context *_ctx, Func *_func, bool genthc);
 	
 	void createIns(int ins);
 	void createIntIns(int ins, int reg, int ival);
@@ -38,9 +38,9 @@ public:
 	void createPrintBoolean(int r) { createRegIns(INS_BPRINT, r); }
 	void createCall(Func *func, int ss) { createFuncIns(INS_CALL, func, ss); }
 	void createSpawn(Func *func, int ss) { createFuncIns(INS_SPAWN, func, ss); }
-	int  createCondOp(int inst, int a, int b);
-	int  createCondOpC(int inst, int a, int b);
-	int  createJmp();
+	int  createCondOp(int inst, int a, int b, int offset = 0);
+	int  createCondOpC(int inst, int a, int b, int offset = 0);
+	int  createJmp(int offset = 0);
 	void setLabel(int n);
 	Code *getCode();
 	Context *getCtx() { return ctx; }

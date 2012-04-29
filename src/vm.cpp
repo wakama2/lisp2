@@ -110,7 +110,11 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		sp += pc[2].i;
 		sp[-2].sp = sp2;
 		sp[-1].pc = pc + 3;
+#ifdef USING_THCODE
+		pc = pc[1].func->thcode;
+#else
 		pc = pc[1].func->code;
+#endif
 	} NEXT();
 
 	CASE(SPAWN) {
@@ -130,7 +134,11 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		sp += pc[2].i;
 		sp[-2].sp = sp2;
 		sp[-1].pc = pc + 3;
+#ifdef USING_THCODE
+		pc = pc[1].func->thcode;
+#else
 		pc = pc[1].func->code;
+#endif
 	} NEXT();
 
 	CASE(JOIN) {
@@ -186,7 +194,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(BPRINT) {
-		fprintf(stdout, "%s\n", sp[pc[1].i].i ? "T" : "Nil");
+		fprintf(stdout, "%s\n", sp[pc[1].i].i ? "T" : "NIL");
 		pc += 2;
 	} NEXT();
 
