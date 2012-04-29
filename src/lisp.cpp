@@ -23,6 +23,7 @@ void cons_print(Cons *cons, FILE *fp) {
 		switch(cons->type) {
 		case CONS_INT: printf("%d", cons->i); break;
 		case CONS_STR: printf("%s", cons->str); break;
+		case CONS_FLOAT: printf("%lf", cons->f); break;
 		case CONS_CAR:
 			fprintf(fp, "(");
 			cons_print(cons->car, fp);
@@ -35,16 +36,6 @@ void cons_print(Cons *cons, FILE *fp) {
 void cons_println(Cons *cons, FILE *fp) {
 	cons_print(cons, fp);
 	fprintf(fp, "\n");
-}
-
-//------------------------------------------------------
-static pthread_mutex_t g_lock;
-static pthread_cond_t  g_cond;
-
-static void notify_runCons(Task *task, WorkerThread *wth) {
-	pthread_mutex_lock(&g_lock);
-	pthread_cond_signal(&g_cond);
-	pthread_mutex_unlock(&g_lock);
 }
 
 //------------------------------------------------------
@@ -66,12 +57,9 @@ static void runCons(Context *ctx, Cons *cons) {
 		func->thcode = func->code;
 #endif
 		Scheduler *sche = ctx->sche;
-		Task *task = sche->newTask(func, NULL, notify_runCons);
+		Task *task = sche->newTask(func, NULL);
 		assert(task != NULL);
-		pthread_mutex_lock(&g_lock);
-		sche->enqueue(task);
-		pthread_cond_wait(&g_cond, &g_lock);
-		pthread_mutex_unlock(&g_lock);
+		sche->enqueueWaitFor(task);
 		sche->deleteTask(task);
 		delete [] func->code;
 	} catch(char *str) {
@@ -147,8 +135,6 @@ static void runFromFile(Context *ctx, const char *filename) {
 //------------------------------------------------------
 int main(int argc, char **argv) {
 	Context *ctx = new Context();
-	pthread_mutex_init(&g_lock, NULL);
-	pthread_cond_init(&g_cond, NULL);
 	const char *fname = NULL;
 	for(int i=1; i<argc; i++) {
 		if(strcmp(argv[i], "-i") == 0) {
@@ -159,7 +145,7 @@ int main(int argc, char **argv) {
 		} else if(strcmp(argv[i], "-worker") == 0) {
 			i++;
 			int n = atoi(argv[i]);
-			if(n >= 2 && n < 20) {
+			if(n >= 1 && n < 20) {
 				ctx->workers = n;
 			} else {
 				fprintf(stderr, "error\n");

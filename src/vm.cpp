@@ -14,8 +14,6 @@
 # define DEFAULT		 default:
 #endif
 
-static void do_nothing(Task *task, WorkerThread *wth) {}
-
 void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 #ifdef USING_THCODE
 	if(wth == NULL) {
@@ -119,7 +117,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 
 	CASE(SPAWN) {
 		if(!sche->isTaskEmpty()) {
-			Task *t = sche->newTask(pc[1].func, sp + pc[2].i, do_nothing);
+			Task *t = sche->newTask(pc[1].func, sp + pc[2].i);
 			if(t != NULL) {
 				// spawn
 				sp[pc[2].i - 3].task = t;
@@ -169,7 +167,6 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		} else {
 			sp[0] = sp[pc[1].i];
 			task->stat = TASK_END;
-			task->dest(task, wth);
 			return;
 		}
 	} NEXT();
@@ -183,7 +180,6 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		} else {
 			sp[0].i = pc[1].i;
 			task->stat = TASK_END;
-			task->dest(task, wth);
 			return;
 		}
 	} NEXT();

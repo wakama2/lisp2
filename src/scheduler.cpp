@@ -18,8 +18,10 @@ Scheduler::Scheduler(Context *ctx) {
 	this->taskEnqIndex = 0;
 	this->taskDeqIndex = 0;
 	this->dead_flag = false;
+	this->waitCount = 0;
 	pthread_mutex_init(&tl_lock, NULL);
 	pthread_cond_init(&tl_cond, NULL);
+	pthread_cond_init(&tl_maincond, NULL);
 }
 
 Scheduler::~Scheduler() {
@@ -79,7 +81,12 @@ Task *Scheduler::dequeue() {
 	{
 		while(taskEnqIndex == taskDeqIndex) {
 			if(dead_flag) goto L_FINAL;
+			waitCount++;
+			if(waitCount == ctx->workers) {
+				pthread_cond_broadcast(&tl_maincond);
+			}
 			pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
+			waitCount--;
 		}
 		int n = taskDeqIndex++;
 		task = taskq[n & queuemask];
@@ -90,7 +97,19 @@ L_FINAL:
 }
 	
 //------------------------------------------------------
-Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
+void Scheduler::enqueueWaitFor(Task *task) {
+	//enqueue(task);
+	pthread_mutex_lock(&tl_lock);
+	// FIXME: COPIPE from euqueue
+	int n = taskEnqIndex++;
+	taskq[n & queuemask] = task;
+	pthread_cond_signal(&tl_cond);
+	pthread_cond_wait(&tl_maincond, &tl_lock);
+	pthread_mutex_unlock(&tl_lock);
+}
+
+//------------------------------------------------------
+Task *Scheduler::newTask(Func *func, Value *args) {
 	Task *oldtop = freelist;
 	if(oldtop != NULL) {
 		Task *newtop = oldtop->next;
@@ -103,7 +122,6 @@ Task *Scheduler::newTask(Func *func, Value *args, TaskMethod dest) {
 			task->pc = func->code;
 #endif
 			task->sp = task->stack;
-			task->dest = dest;
 			task->stat = TASK_RUN;
 			memcpy(task->sp, args, func->argc * sizeof(Value));
 			return task;

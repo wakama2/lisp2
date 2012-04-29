@@ -4,8 +4,6 @@
 //------------------------------------------------------
 // task
 
-typedef void (*TaskMethod)(Task *task, WorkerThread *wth);
-
 enum TaskStat {
 	TASK_RUN,
 	TASK_END,
@@ -16,7 +14,6 @@ struct Task {
 	Task *next;
 	Code  *pc;
 	Value *sp;
-	TaskMethod dest;
 	Value stack[TASK_STACKSIZE];
 };
 
@@ -42,8 +39,10 @@ private:
 	int taskEnqIndex;
 	int taskDeqIndex;
 	int queuemask;
+	int waitCount;
 	pthread_mutex_t tl_lock;
 	pthread_cond_t  tl_cond;
+	pthread_cond_t  tl_maincond;
 	Task *taskpool;
 	Task *freelist;
 	volatile bool dead_flag;
@@ -55,7 +54,8 @@ public:
 	void initWorkers();
 	void enqueue(Task *task);
 	Task *dequeue();
-	Task *newTask(Func *func, Value *args, TaskMethod dest);
+	void enqueueWaitFor(Task *task);
+	Task *newTask(Func *func, Value *args);
 	void deleteTask(Task *task);
 	bool isTaskEmpty() { return freelist == NULL; }
 	Context *getCtx() { return ctx; }
