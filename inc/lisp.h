@@ -85,7 +85,7 @@ struct Func {
 #endif
 	Code *code;
 	const char *name;
-	int argc;
+	size_t argc;
 	const char **args;
 	CodeGenFunc codegen;
 	Func *next;

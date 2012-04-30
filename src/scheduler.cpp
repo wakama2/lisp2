@@ -71,7 +71,9 @@ void Scheduler::enqueue(Task *task) {
 	pthread_mutex_lock(&tl_lock);
 	int n = taskEnqIndex++;
 	taskq[n & queuemask] = task;
-	pthread_cond_signal(&tl_cond); /* notify a thread in dequeue */
+	if(waitCount != 0) {
+		pthread_cond_signal(&tl_cond); /* notify a thread in dequeue */
+	}
 	pthread_mutex_unlock(&tl_lock);
 }
 
