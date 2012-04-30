@@ -145,6 +145,10 @@ static int toOp(const char *s) {
 
 #define genCondFunc(_fname, _op) \
 static ValueType _fname(Func *, Cons *cons, CodeBuilder *cb, int sp) { \
+	if(cons->cdr == NULL) { \
+		cb->createIConst(sp, 1); \
+		return VT_BOOLEAN; \
+	} \
 	codegen(cons, cb, sp); \
 	codegen(cons->cdr, cb, sp + 1); \
 	int l = cb->createCondOp(_op, sp, sp + 1); \
@@ -163,7 +167,6 @@ genCondFunc(genGE, INS_IJMPLT);
 genCondFunc(genEQ, INS_IJMPNE);
 genCondFunc(genNE, INS_IJMPEQ);
 
-// FIXME
 static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Cons *cond = cons;
 	cons = cons->cdr;
@@ -175,14 +178,9 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	if(cond->type == CONS_CAR && (op = toOp(cond->car->str)) != -1) {
 		Cons *lhs = cond->car->cdr;
 		Cons *rhs = lhs->cdr;
-		int reglhs = 0;
-		if(lhs->type == CONS_STR && getArgIndex(cb->getFunc(), lhs->str) != -1) {
-			reglhs = getArgIndex(cb->getFunc(), lhs->str);
-		} else {
-			codegen(lhs, cb, sp);
-		}
-		codegen(rhs, cb, sp + 1);
-		label = cb->createCondOp(op, reglhs, sp+1);
+		codegen(lhs, cb, sp);
+		codegen(rhs, cb, sp+1);
+		label = cb->createCondOp(op, sp, sp+1);
 	} else {
 		ValueType cty = codegen(cond, cb, sp);
 		if(cty == VT_BOOLEAN) {
@@ -193,15 +191,12 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 			label = -1;
 		}
 	}
-
 	// then expr
 	codegen(thenCons, cb, sp);
 	int merge = cb->createJmp();
-
 	// else expr
 	if(label != -1) cb->setLabel(label);
-	codegen(elseCons, cb, sp);
-
+	if(elseCons != NULL) codegen(elseCons, cb, sp);
 	cb->setLabel(merge);
 	return VT_INT;
 }
@@ -346,6 +341,19 @@ static bool isCondJmpOp(int i) {
 	return false;
 }
 
+static bool isCondJmpCOp(int i) {
+	switch(i) {
+	case INS_IJMPLTC: 
+	case INS_IJMPLEC: 
+	case INS_IJMPGTC: 
+	case INS_IJMPGEC: 
+	case INS_IJMPEQC: 
+	case INS_IJMPNEC:
+		return true;
+	}
+	return false;
+}
+
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	CodeBuilder cb(ctx, func, false);
 	Code *pc = func->code;
@@ -410,6 +418,20 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			if(isCondJmpOp(pc[3].i) && pc[1].i == pc[6].i) {
 				// mov b a && jmpxx c b -> jmpxx c a
 				int n = cb.createCondOp(pc[3].i, pc[5].i+sp, pc[2].i+sp);
+				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
+				pc += 3 + 4;
+				break;
+			}
+			if(isCondJmpOp(pc[3].i) && pc[1].i == pc[5].i) {
+				// mov b a && jmpxx b c -> jmpxx a c
+				int n = cb.createCondOp(pc[3].i, pc[2].i+sp, pc[6].i+sp);
+				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
+				pc += 3 + 4;
+				break;
+			}
+			if(isCondJmpCOp(pc[3].i) && pc[1].i == pc[5].i) {
+				// mov b a && jmpxxC b n -> jmpxxC a n
+				int n = cb.createCondOpC(pc[3].i, pc[2].i+sp, pc[6].i);
 				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
 				pc += 3 + 4;
 				break;
@@ -671,7 +693,7 @@ void addDefaultFuncs(Context *ctx) {
 	ctx->putFunc(newFunc("-" , NULL, genSub));
 	ctx->putFunc(newFunc("*" , NULL, genMul));
 	ctx->putFunc(newFunc("/" , NULL, genDiv));
-	ctx->putFunc(newFunc("%" , NULL, genMod));
+	ctx->putFunc(newFunc("mod" , NULL, genMod));
 	ctx->putFunc(newFunc("<" , NULL, genLT));
 	ctx->putFunc(newFunc(">" , NULL, genGT));
 	ctx->putFunc(newFunc("<=", NULL, genLE));
