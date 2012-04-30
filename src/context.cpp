@@ -6,7 +6,7 @@ Context::Context() {
 	varlist = NULL;
 	flagShowIR = false;
 	inlinecount = 2;
-	workers = 4;
+	workers = 5;
 #ifdef USING_THCODE
 	vmrun(this, NULL, NULL); // init jmptable
 #endif

@@ -40,7 +40,7 @@ Scheduler::~Scheduler() {
 }
 
 void Scheduler::initWorkers() {
-	int TASK_MAX = ctx->workers * 3 / 2;
+	int TASK_MAX = ctx->workers * 2;
 	int TASKQUEUE_MAX = 1;
 	for(int i=TASK_MAX; i!=0; i>>=1) {
 		TASKQUEUE_MAX<<=1; // max must be 2^n
@@ -54,7 +54,12 @@ void Scheduler::initWorkers() {
 		taskpool[i].next = &taskpool[i+1];
 	}
 	taskpool[TASK_MAX - 1].next = NULL;
-
+	// init endcode
+#ifdef USING_THCODE
+	endcode.ptr = ctx->getDTLabel(INS_END);
+#else
+	endcode.i = INS_END;
+#endif
 	// start worker threads
 	wthpool = new WorkerThread[ctx->workers];
 	for(int i=0; i<ctx->workers; i++) {
@@ -85,7 +90,7 @@ Task *Scheduler::dequeue() {
 			if(dead_flag) goto L_FINAL;
 			waitCount++;
 			if(waitCount == ctx->workers) {
-				pthread_cond_broadcast(&tl_maincond);
+				pthread_cond_signal(&tl_maincond);
 			}
 			pthread_cond_wait(&tl_cond, &tl_lock); /* wait task enqueue */
 			waitCount--;
@@ -123,7 +128,8 @@ Task *Scheduler::newTask(Func *func, Value *args) {
 #else
 			task->pc = func->code;
 #endif
-			task->sp = task->stack;
+			task->sp = task->stack + 2;
+			task->sp[-1].pc = &endcode;
 			task->stat = TASK_RUN;
 			memcpy(task->sp, args, func->argc * sizeof(Value));
 			return task;

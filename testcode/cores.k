@@ -2,10 +2,10 @@ N = 10;
 
 void main() {
 	res = [];
-	for(int i=3; i<16; i++) {
+	for(int i=2; i<8; i++) {
 		float sum = 0.0;
 		for(int j=0; j<N; j++) {
-			String s = exec("time -p ./lisp fib.lisp >& a && cat a");
+			String s = exec("time -p ./lisp fib.lisp -worker " + i + " >& a && cat a");
 			tk = s.split("\n");
 			if(tk[0] != "102334155") {
 				print "ERROR RESULT\n";

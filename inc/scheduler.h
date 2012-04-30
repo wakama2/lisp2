@@ -36,10 +36,10 @@ class Scheduler {
 private:
 	Context *ctx;
 	Task **taskq;
-	int taskEnqIndex;
-	int taskDeqIndex;
+	volatile int taskEnqIndex;
+	volatile int taskDeqIndex;
+	volatile int waitCount;
 	int queuemask;
-	int waitCount;
 	pthread_mutex_t tl_lock;
 	pthread_cond_t  tl_cond;
 	pthread_cond_t  tl_maincond;
@@ -47,6 +47,7 @@ private:
 	Task *freelist;
 	volatile bool dead_flag;
 	WorkerThread *wthpool;
+	Code endcode;
 
 public:
 	Scheduler(Context *ctx);
