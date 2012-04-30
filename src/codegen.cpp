@@ -71,20 +71,16 @@ static ValueType genAdd(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	cons = cons->cdr;
 	bool tf = vt == VT_FUTURE;
 	for(; cons != NULL; cons = cons->cdr) {
-		if(cons->type == CONS_INT) {
-			cb->createIAddC(sp, cons->i);
-		} else {
-			int sft = tf ? 2 : 1;
-			if(codegen(cons, cb, sp + sft) != VT_INT) {
-				fprintf(stderr, "not integer\n");
-				throw "";
-			}
-			if(tf) {
-				cb->createJoin(sp);
-				tf = false;
-			}
-			cb->createIAdd(sp, sp + sft);
+		int sft = tf ? 2 : 1;
+		if(codegen(cons, cb, sp + sft) != VT_INT) {
+			fprintf(stderr, "not integer\n");
+			throw "";
 		}
+		if(tf) {
+			cb->createJoin(sp);
+			tf = false;
+		}
+		cb->createIAdd(sp, sp + sft);
 	}
 	return VT_INT;
 }
@@ -98,15 +94,11 @@ static ValueType genSub(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		return VT_INT;
 	}
 	for(; cons != NULL; cons = cons->cdr) {
-		if(cons->type == CONS_INT) {
-			cb->createISubC(sp, cons->i);
-		} else {
-			if(codegen(cons, cb, sp + 1) != VT_INT) {
-				fprintf(stderr, "not integer\n");
-				throw "";
-			}
-			cb->createISub(sp, sp + 1);
+		if(codegen(cons, cb, sp + 1) != VT_INT) {
+			fprintf(stderr, "not integer\n");
+			throw "";
 		}
+		cb->createISub(sp, sp + 1);
 	}
 	return VT_INT;
 }
@@ -151,16 +143,6 @@ static int toOp(const char *s) {
 	return -1;
 }
 
-static int toOpC(const char *s) {
-	if(strcmp(s, "<") == 0)  return INS_IJMPGEC;
-	if(strcmp(s, "<=") == 0) return INS_IJMPGTC;
-	if(strcmp(s, ">") == 0)  return INS_IJMPLEC;
-	if(strcmp(s, ">=") == 0) return INS_IJMPLTC;
-	if(strcmp(s, "==") == 0) return INS_IJMPNEC;
-	if(strcmp(s, "!=") == 0) return INS_IJMPEQC;
-	return -1;
-}
-
 #define genCondFunc(_fname, _op) \
 static ValueType _fname(Func *, Cons *cons, CodeBuilder *cb, int sp) { \
 	codegen(cons, cb, sp); \
@@ -199,13 +181,8 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		} else {
 			codegen(lhs, cb, sp);
 		}
-		if(rhs->type == CONS_INT) {
-			op = toOpC(cond->car->str);
-			label = cb->createCondOpC(op, reglhs, rhs->i);
-		} else {
-			codegen(rhs, cb, sp + 1);
-			label = cb->createCondOp(op, reglhs, sp+1);
-		}
+		codegen(rhs, cb, sp + 1);
+		label = cb->createCondOp(op, reglhs, sp+1);
 	} else {
 		ValueType cty = codegen(cond, cb, sp);
 		if(cty == VT_BOOLEAN) {
@@ -330,6 +307,32 @@ static bool isjmplable(ArrayBuilder<Label> *ab, Code *pc, int layer) {
 	return false;
 }
 
+static bool isReg2Op(int i) {
+	switch(i) {
+	case INS_IADD: 
+	case INS_ISUB: 
+	//case INS_IMUL: 
+	//case INS_IDIV: 
+	//case INS_IMOD: 
+		return true;
+	}
+	return false;
+}
+
+static int toConstOp(int i) {
+	switch(i) {
+	case INS_IADD: return INS_IADDC;
+	case INS_ISUB: return INS_ISUBC;
+	case INS_IJMPLT: return INS_IJMPLTC;
+	case INS_IJMPLE: return INS_IJMPLEC;
+	case INS_IJMPGT: return INS_IJMPGTC;
+	case INS_IJMPGE: return INS_IJMPGEC;
+	case INS_IJMPEQ: return INS_IJMPEQC;
+	case INS_IJMPNE: return INS_IJMPNEC;
+	}
+	exit(1);
+}
+
 static bool isCondJmpOp(int i) {
 	switch(i) {
 	case INS_IJMPLT: 
@@ -365,6 +368,19 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			if(pc[3].i == INS_MOV && (pc[1].i == pc[5].i)) {
 				cb.createIConst(pc[4].i + sp, pc[2].i);
 				pc += 3 + 3;
+				break;
+			}
+			if(isReg2Op(pc[3].i) && (pc[1].i == pc[5].i)) {
+				// const a x && op b a -> opC b x
+				cb.createIntIns(toConstOp(pc[3].i), pc[4].i+sp, pc[2].i);
+				pc += 3 + 3;
+				break;
+			}
+			if(isCondJmpOp(pc[3].i) && pc[1].i == pc[6].i) {
+				// const a x && jmpxx b a -> jmpxxC b x
+				int n = cb.createCondOpC(toConstOp(pc[3].i), pc[5].i+sp, pc[2].i);
+				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
+				pc += 3 + 4;
 				break;
 			}
 			if(pc[3].i == INS_RET && (pc[1].i == pc[4].i) && layer == 0) {
