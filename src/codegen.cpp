@@ -322,6 +322,14 @@ struct Label {
 		la.add(l); \
 	}
 
+static bool isjmplable(ArrayBuilder<Label> *ab, Code *pc, int layer) {
+	for(int i=0, j=ab->getSize(); i<j; i++) {
+		Label l = (*ab)[i];
+		if(pc == l.pc && layer == l.layer) return true;
+	}
+	return false;
+}
+
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	CodeBuilder cb(ctx, func, false);
 	Code *pc = func->code;
@@ -340,36 +348,39 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	}
 	switch(pc->i) {
 	case INS_ICONST: {
-		if(pc[3].i == INS_MOV && (pc[1].i == pc[5].i)) {
-			cb.createIConst(pc[4].i + sp, pc[2].i);
-			pc += 3 + 3;
-		} else if(pc[3].i == INS_RET && (pc[1].i == pc[4].i)) {
-			if(layer > 0) {
-				cb.createIConst(sp-2, pc[2].i);
-				// goto end
-				if(pc->i != INS_END) {
-					int n = cb.createJmp();
-					PUSH_LABEL(n, fp[-1].pc, layer-1);
-				}
-			} else {
-				cb.createRetC(pc[2].i);
+		if(!isjmplable(&la, pc+3, layer)) {
+			if(pc[3].i == INS_MOV && (pc[1].i == pc[5].i)) {
+				cb.createIConst(pc[4].i + sp, pc[2].i);
+				pc += 3 + 3;
+				break;
 			}
-			pc += 3 + 2;
-		} else {
-			cb.createIConst(pc[1].i + sp, pc[2].i);
-			pc += 3;
+			if(pc[3].i == INS_RET && (pc[1].i == pc[4].i) && layer == 0) {
+				cb.createRetC(pc[2].i);
+				pc += 3 + 2;
+				break;
+			}
 		}
+		cb.createIConst(pc[1].i + sp, pc[2].i);
+		pc += 3;
 		break;
 	}
 	case INS_MOV: {
-		//if(pc[3].i == INS_MOV && pc[1].i == pc[5].i) {
-		//	// mov b a && mov c b -> mov c a
-		//	cb.createMov(pc[4].i + sp, pc[2].i + sp);
-		//	pc += 3 + 3;
-		//} else {
-			cb.createMov(pc[1].i + sp, pc[2].i + sp);
-			pc += 3;
-		//}
+		if(!isjmplable(&la, pc+3, layer)) {
+			if(pc[3].i == INS_MOV && pc[1].i == pc[5].i) {
+				// mov b a && mov c b -> mov c a
+				cb.createMov(pc[4].i + sp, pc[2].i + sp);
+				pc += 3 + 3;
+				break;
+			}
+			if(pc[3].i == INS_RET && pc[1].i == pc[4].i && layer == 0) {
+				// mov b a && ret b -> ret a
+				cb.createRet(pc[2].i + sp);
+				pc += 3 + 2;
+				break;
+			}
+		}
+		cb.createMov(pc[1].i + sp, pc[2].i + sp);
+		pc += 3;
 		break;
 	}
 	case INS_IADD: 
@@ -449,16 +460,15 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	case INS_RET: {
 		if(layer > 0) {
 			cb.createMov(sp-2, sp + pc[1].i);
-			pc += 2;
 			// goto end
-			if(pc->i != INS_END) {
+			if(pc[2].i != INS_END) {
 				int n = cb.createJmp();
 				PUSH_LABEL(n, fp[-1].pc, layer-1);
 			}
 		} else {
-			cb.createRet(func->argc);
-			pc += 2;
+			cb.createRet(pc[1].i);
 		}
+		pc += 2;
 		break;
 	}
 	case INS_RETC: {
