@@ -314,6 +314,23 @@ static bool isReg2Op(int i) {
 	return false;
 }
 
+static bool isReg2COp(int i) {
+	switch(i) {
+	case INS_IADDC: 
+	case INS_ISUBC: 
+		return true;
+	}
+	return false;
+}
+
+static int applyOpC(int i, int x, int y) {
+	switch(i) {
+	case INS_IADDC: return x + y;
+	case INS_ISUBC: return x - y;
+	}
+	exit(1);
+}
+	
 static int toConstOp(int i) {
 	switch(i) {
 	case INS_IADD: return INS_IADDC;
@@ -381,6 +398,12 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			if(isReg2Op(pc[3].i) && (pc[1].i == pc[5].i)) {
 				// const a x && op b a -> opC b x
 				cb.createIntIns(toConstOp(pc[3].i), pc[4].i+sp, pc[2].i);
+				pc += 3 + 3;
+				break;
+			}
+			if(isReg2COp(pc[3].i) && (pc[1].i == pc[4].i)) {
+				// const a x && opC a y -> const a (x op y)
+				cb.createIConst(pc[1].i+sp, applyOpC(pc[3].i, pc[2].i, pc[5].i));
 				pc += 3 + 3;
 				break;
 			}
