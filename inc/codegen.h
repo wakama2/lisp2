@@ -49,5 +49,9 @@ public:
 
 ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn = false);
 
+// llvm compile
+void llvm_init(Context *ctx);
+void llvm_compile(Context *ctx, Func *func);
+
 #endif
 

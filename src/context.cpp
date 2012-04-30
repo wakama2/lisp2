@@ -11,6 +11,7 @@ Context::Context() {
 	vmrun(this, NULL, NULL); // init jmptable
 #endif
 	addDefaultFuncs(this);   // init funcs
+	llvm_init(this);				// init llvm context
 	sche = new Scheduler(this);
 }
 

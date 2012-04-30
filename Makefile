@@ -1,7 +1,7 @@
 CC = g++
-CPP = g++
+CPP = $(CC)
 TARGET=lisp
-CFLAGS = -O2 -g3 -Wall
+CFLAGS = -O0 -g3 -Wall
 INCDIR = -Iinc
 LIB = -lreadline -lpthread
 SRCS = \
@@ -11,13 +11,17 @@ SRCS = \
 	src/builder.cpp \
 	src/context.cpp \
 	src/lisp.cpp \
-	src/parse.cpp
+	src/parse.cpp \
+	src/llvm.cpp
 HEADERS = \
 	inc/lisp.h
 OBJS = $(SRCS:.cpp=.o)
 
 $(TARGET): $(HEADERS) $(OBJS)
-	$(CC) $(OBJS) -o $@ $(LIB) $(CFLAGS) $(INCDIR)
+	$(CC) $(OBJS) -o $@ $(LIB) $(CFLAGS) $(INCDIR) `llvm-config --libs core jit native --ldflags`
+
+src/llvm.o: $(HEADERS)
+	$(CPP) src/llvm.cpp -c -o $@ $(CFLAGS) $(INCDIR) `llvm-config --cxxflags`
 
 .SUFFIXES: .cpp.o
 .cpp.o: $(HEADERS)
