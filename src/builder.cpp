@@ -7,7 +7,7 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 	if(ctx->flagShowIR) {
 		printf("//----------------------------//\n");
 		if(func != NULL) {
-			printf("* defun %s argc=%d %s\n", func->name, func->argc, genthc ? "[TH]":"");
+			printf("* defun %s argc=%d %s\n", func->name, (int)func->argc, genthc ? "[TH]":"");
 		}
 	}
 }

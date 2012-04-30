@@ -3,7 +3,7 @@
 static ValueType genSpawn(Func *func, Cons *cons, CodeBuilder *cb, int sp);
 
 static int getArgIndex(Func *func, const char *name) {
-	for(int i=0; i<func->argc; i++) {
+	for(int i=0; i<(int)func->argc; i++) {
 		if(strcmp(name, func->args[i]) == 0) {
 			return i;
 		}

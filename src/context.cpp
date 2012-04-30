@@ -18,7 +18,7 @@ Context::~Context() {
 	delete sche;
 	for(Func *l=funclist; l!=NULL; ){
 		Func *next = l->next;
-		for(int i=0; i<l->argc; i++) {
+		for(int i=0; i<(int)l->argc; i++) {
 			delete [] l->args[i];
 		}
 		if(l->argc != 0) delete [] l->args;
