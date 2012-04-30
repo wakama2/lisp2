@@ -330,6 +330,19 @@ static bool isjmplable(ArrayBuilder<Label> *ab, Code *pc, int layer) {
 	return false;
 }
 
+static bool isCondJmpOp(int i) {
+	switch(i) {
+	case INS_IJMPLT: 
+	case INS_IJMPLE: 
+	case INS_IJMPGT: 
+	case INS_IJMPGE: 
+	case INS_IJMPEQ: 
+	case INS_IJMPNE:
+		return true;
+	}
+	return false;
+}
+
 static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	CodeBuilder cb(ctx, func, false);
 	Code *pc = func->code;
@@ -376,6 +389,13 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 				// mov b a && ret b -> ret a
 				cb.createRet(pc[2].i + sp);
 				pc += 3 + 2;
+				break;
+			}
+			if(isCondJmpOp(pc[3].i) && pc[1].i == pc[6].i) {
+				// mov b a && jmpxx c b -> jmpxx c a
+				int n = cb.createCondOp(pc[3].i, pc[5].i+sp, pc[2].i+sp);
+				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
+				pc += 3 + 4;
 				break;
 			}
 		}
@@ -509,6 +529,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	delete [] func->code;
 	delete [] frame;
 	func->code = cb.getCode();
+	func->codeLength = cb.getCodeLength();
 }
 
 #ifdef USING_THCODE
@@ -595,6 +616,7 @@ static void opt_thcode(Context *ctx, Func *func) {
 	goto L_BEGIN;
 	L_FINAL:
 	func->thcode = cb.getCode();
+	func->codeLength = cb.getCodeLength();
 }
 #endif
 
@@ -613,9 +635,13 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	newCb.createRet(func->argc);
 	newCb.createEnd();
 	func->code = newCb.getCode();
-
-	opt_inline(ctx, func, ctx->inlinecount);
-	for(int i=0; i<2; i++) {
+	func->codeLength = newCb.getCodeLength();
+#define CODESIZE_BORDER 400
+	for(int i=0; i<ctx->inlinecount; i++) {
+		opt_inline(ctx, func, 1);
+		if(func->codeLength >= CODESIZE_BORDER) break;
+	}
+	for(int i=0; i<4; i++) {
 		opt_inline(ctx, func, 0);
 	}
 #ifdef USING_THCODE

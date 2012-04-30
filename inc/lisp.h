@@ -84,6 +84,7 @@ struct Func {
 	Code *thcode;
 #endif
 	Code *code;
+	int codeLength;
 	const char *name;
 	size_t argc;
 	const char **args;

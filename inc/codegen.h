@@ -43,6 +43,7 @@ public:
 	int  createJmp(int offset = 0);
 	void setLabel(int n);
 	Code *getCode();
+	int   getCodeLength() { return codebuf.getSize(); }
 	Context *getCtx() { return ctx; }
 	Func *getFunc()   { return func; }
 };
