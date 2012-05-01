@@ -34,8 +34,8 @@ public:
 	void createRet(int r) { createRegIns(INS_RET, r); }
 	void createRetC(int n) { createIntIns(INS_RETC, n); }
 	void createEnd() { createIns(INS_END); }
-	void createLoadGlobal(Variable *var, int reg) { createVarIns(INS_LOAD_GLOBAL, reg, var); }
-	void createStoreGlobal(Variable *var, int reg) { createVarIns(INS_STORE_GLOBAL, reg, var); }
+	void createLoadGlobal(int reg, Variable *var) { createVarIns(INS_LOAD_GLOBAL, reg, var); }
+	void createStoreGlobal(int reg, Variable *var) { createVarIns(INS_STORE_GLOBAL, reg, var); }
 	void createPrintInt(int r) { createRegIns(INS_IPRINT, r); }
 	void createPrintBoolean(int r) { createRegIns(INS_BPRINT, r); }
 	void createCall(Func *func, int ss) { createFuncIns(INS_CALL, func, ss); }

@@ -30,11 +30,15 @@ class Context;
 class CodeBuilder;
 
 //------------------------------------------------------
-// atomic function
+// builtin function
 
 #define ATOMIC_ADD(p, v) __sync_fetch_and_add(&(p), v)
 #define ATOMIC_SUB(p, v) __sync_fetch_and_sub(&(p), v)
 #define CAS(a, ov, nv) __sync_bool_compare_and_swap(&(a), ov, nv)
+
+#define likely(x)      __builtin_expect(!!(x), 1)
+#define unlikely(x)    __builtin_expect(!!(x), 0)
+#define prefetch(...)  __builtin_prefetch(__VA_ARGS__)
 
 //------------------------------------------------------
 // instruction, code, value

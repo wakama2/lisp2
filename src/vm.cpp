@@ -97,12 +97,12 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(LOAD_GLOBAL) {
-		sp[pc[2].i] = pc[1].var->value;
+		sp[pc[1].i] = pc[2].var->value;
 		pc += 3;
 	} NEXT();
 
 	CASE(STORE_GLOBAL) {
-		pc[1].var->value = sp[pc[2].i];
+		pc[2].var->value = sp[pc[1].i];
 		pc += 3;
 	} NEXT();
 
@@ -119,9 +119,9 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(SPAWN) {
-		if(!sche->isTaskEmpty()) {
+		if(unlikely(!sche->isTaskEmpty())) {
 			Task *t = sche->newTask(pc[1].func, sp + pc[2].i);
-			if(t != NULL) {
+			if(unlikely(t != NULL)) {
 				// spawn
 				sp[pc[2].i - 3].task = t;
 				sche->enqueue(t);

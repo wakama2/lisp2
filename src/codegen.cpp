@@ -34,7 +34,7 @@ ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn) {
 		}
 		Variable *var = cb->getCtx()->getVar(name);
 		if(var != NULL) {
-			cb->createLoadGlobal(var, sp);
+			cb->createLoadGlobal(sp, var);
 			return var->type;
 		}
 		fprintf(stderr, "symbol not found: %s\n", cons->str);
@@ -192,13 +192,19 @@ static ValueType genIf(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 		}
 	}
 	// then expr
-	codegen(thenCons, cb, sp);
+	ValueType thentype = codegen(thenCons, cb, sp);
 	int merge = cb->createJmp();
 	// else expr
+	ValueType elsetype;
 	if(label != -1) cb->setLabel(label);
-	if(elseCons != NULL) codegen(elseCons, cb, sp);
+	if(elseCons != NULL) {
+		elsetype = codegen(elseCons, cb, sp);
+	} else {
+		cb->createIConst(sp, 0); // NIL
+		elsetype = VT_BOOLEAN;
+	}
 	cb->setLabel(merge);
-	return VT_INT;
+	return thentype == elsetype ? thentype : VT_INT;
 }
 
 static const char *newStr(const char *ss) {
@@ -274,7 +280,7 @@ static ValueType genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	cb->getCtx()->putVar(v);
 
 	v->type = codegen(expr, cb, sp);
-	cb->createStoreGlobal(v, sp);
+	cb->createStoreGlobal(sp, v);
 	return v->type;
 }
 
@@ -368,6 +374,18 @@ static bool isCondJmpOp(int i) {
 		return true;
 	}
 	return false;
+}
+
+static int toRevCondJmpOp(int i) {
+	switch(i) {
+	case INS_IJMPLT: return INS_IJMPGE;
+	case INS_IJMPLE: return INS_IJMPGT;
+	case INS_IJMPGT: return INS_IJMPLE;
+	case INS_IJMPGE: return INS_IJMPLT;
+	case INS_IJMPEQ: return INS_IJMPNE;
+	case INS_IJMPNE: return INS_IJMPEQ;
+	default: exit(0);
+	}
 }
 
 static bool isCondJmpCOp(int i) {
@@ -469,6 +487,12 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 				pc += 3 + 3;
 				break;
 			}
+			//if((pc[3].i == INS_IADD || pc[3].i == INS_IMUL) && (pc[1].i == pc[4].i)) {
+			//	// const a x && op a b -> opC b x
+			//	cb.createRegIntIns(toConstOp(pc[3].i), pc[5].i+sp, pc[2].i);
+			//	pc += 3 + 3;
+			//	break;
+			//}
 			if(isReg2Op(pc[3].i) && (pc[1].i == pc[5].i)) {
 				// const a x && op b a -> opC b x
 				cb.createRegIntIns(toConstOp(pc[3].i), pc[4].i+sp, pc[2].i);
@@ -484,6 +508,14 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 			if(isCondJmpOp(pc[3].i) && pc[1].i == pc[6].i) {
 				// const a x && jmpxx b a -> jmpxxC b x
 				int n = cb.createCondOpC(toConstOp(pc[3].i), pc[5].i+sp, pc[2].i);
+				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
+				pc += 3 + 4;
+				break;
+			}
+			if(isCondJmpOp(pc[3].i) && pc[1].i == pc[5].i) {
+				// const a x && jmpxx a b -> jmp[!xx]C b x
+				int op = toConstOp(toRevCondJmpOp(pc[3].i));
+				int n = cb.createCondOpC(op, pc[6].i+sp, pc[2].i);
 				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
 				pc += 3 + 4;
 				break;
@@ -512,6 +544,12 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 			if(pc[3].i == INS_MOV && pc[1].i == pc[5].i) {
 				// mov b a && mov c b -> mov c a
 				cb.createMov(pc[4].i + sp, pc[2].i + sp);
+				pc += 3 + 3;
+				break;
+			}
+			if(isReg2Op(pc[3].i) && (pc[1].i == pc[5].i)) {
+				// mov b a && op c b -> op c a
+				cb.createReg2Ins(pc[3].i, pc[4].i+sp, pc[2].i);
 				pc += 3 + 3;
 				break;
 			}
@@ -601,8 +639,8 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 		}
 		break;
 	}
-	case INS_LOAD_GLOBAL:  cb.createLoadGlobal(pc[1].var, pc[2].i + sp); pc += 3; break;
-	case INS_STORE_GLOBAL: cb.createStoreGlobal(pc[1].var, pc[2].i + sp); pc += 3; break;
+	case INS_LOAD_GLOBAL:  cb.createLoadGlobal (pc[1].i + sp, pc[2].var); pc += 3; break;
+	case INS_STORE_GLOBAL: cb.createStoreGlobal(pc[1].i + sp, pc[2].var); pc += 3; break;
 	case INS_CALL:  {
 		if(layer < inlinecnt) {
 			// inline

@@ -78,8 +78,8 @@ void CodeBuilder::createVarIns(int ins, int reg, Variable *var) {
 		printf("%04d: %s\t[%d] %s\n", ci, ctx->getInstName(ins), reg, var->name);
 	}
 	ADDINS(ins);
-	ADD(var, var);
 	ADD(i, reg);
+	ADD(var, var);
 }
 
 void CodeBuilder::createFuncIns(int ins, Func *func, int sftsfp) {
