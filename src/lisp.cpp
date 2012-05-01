@@ -44,7 +44,7 @@ static void runCons(Context *ctx, Cons *cons) {
 	func->name = "__script";
 	func->argc = 0;
 	try {
-		CodeBuilder cb(ctx, func, true);
+		CodeBuilder cb(ctx, func, true, true);
 		ValueType ty = codegen(cons, &cb, 0);
 		if(ty == VT_INT) {
 			cb.createPrintInt(0);

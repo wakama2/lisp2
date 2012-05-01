@@ -58,7 +58,7 @@ struct Code {
 struct Value {
 	union {
 		int64_t i;
-		double d;
+		double f;
 		const char *str;
 		Task *task;
 		Code *pc;

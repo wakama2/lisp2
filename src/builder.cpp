@@ -1,10 +1,11 @@
 #include "lisp.h"
 
-CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
+CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc, bool _showir) {
 	this->ctx = ctx;
 	this->func = func;
 	this->genthc = genthc;
-	if(ctx->flagShowIR) {
+	this->showir = ctx->flagShowIR && _showir;
+	if(showir) {
 		printf("//----------------------------//\n");
 		if(func != NULL) {
 			printf("* defun %s argc=%d %s\n", func->name, (int)func->argc, genthc ? "[TH]":"");
@@ -32,14 +33,22 @@ CodeBuilder::CodeBuilder(Context *ctx, Func *func, bool genthc) {
 
 #define ci codebuf.getSize()
 void CodeBuilder::createIns(int ins) {
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\n", ci, ctx->getInstName(ins));
 	}
 	ADDINS(ins);
 }
 
-void CodeBuilder::createIntIns(int ins, int reg, int ival) {
-	if(ctx->flagShowIR) {
+void CodeBuilder::createIntIns(int ins, int n) {
+	if(showir) {
+		printf("%04d: %s\t%d\n", ci, ctx->getInstName(ins), n);
+	}
+	ADDINS(ins);
+	ADD(i, n);
+}
+
+void CodeBuilder::createRegIntIns(int ins, int reg, int ival) {
+	if(showir) {
 		printf("%04d: %s\t[%d] %d\n", ci, ctx->getInstName(ins), reg, ival);
 	}
 	ADDINS(ins);
@@ -48,7 +57,7 @@ void CodeBuilder::createIntIns(int ins, int reg, int ival) {
 }
 
 void CodeBuilder::createRegIns(int ins, int reg) {
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\t[%d]\n", ci, ctx->getInstName(ins), reg);
 	}
 	ADDINS(ins);
@@ -56,7 +65,7 @@ void CodeBuilder::createRegIns(int ins, int reg) {
 }
 
 void CodeBuilder::createReg2Ins(int ins, int reg, int reg2) {
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\t[%d] [%d]\n", ci, ctx->getInstName(ins), reg, reg2);
 	}
 	ADDINS(ins);
@@ -65,7 +74,7 @@ void CodeBuilder::createReg2Ins(int ins, int reg, int reg2) {
 }
 
 void CodeBuilder::createVarIns(int ins, int reg, Variable *var) {
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\t[%d] %s\n", ci, ctx->getInstName(ins), reg, var->name);
 	}
 	ADDINS(ins);
@@ -74,7 +83,7 @@ void CodeBuilder::createVarIns(int ins, int reg, Variable *var) {
 }
 
 void CodeBuilder::createFuncIns(int ins, Func *func, int sftsfp) {
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\t%s %d\n", ci, ctx->getInstName(ins), func->name, sftsfp);
 	}
 	ADDINS(ins);
@@ -84,7 +93,7 @@ void CodeBuilder::createFuncIns(int ins, Func *func, int sftsfp) {
 
 int CodeBuilder::createCondOp(int inst, int a, int b, int offset) {
 	int lb = ci;
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\t[%d] [%d] L%d\n", ci, ctx->getInstName(inst), a, b, lb);
 	}
 	ADDINS(inst);
@@ -96,7 +105,7 @@ int CodeBuilder::createCondOp(int inst, int a, int b, int offset) {
 
 int CodeBuilder::createCondOpC(int inst, int a, int b, int offset) {
 	int lb = ci;
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\t[%d] %d L%d\n", ci, ctx->getInstName(inst), a, b, lb);
 	}
 	ADDINS(inst);
@@ -108,7 +117,7 @@ int CodeBuilder::createCondOpC(int inst, int a, int b, int offset) {
 
 int CodeBuilder::createJmp(int offset) {
 	int lb = ci;
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("%04d: %s\tL%d\n", ci, ctx->getInstName(INS_JMP), lb);
 	}
 	ADDINS(INS_JMP);
@@ -117,7 +126,7 @@ int CodeBuilder::createJmp(int offset) {
 }
 
 void CodeBuilder::setLabel(int n) {
-	if(ctx->flagShowIR) {
+	if(showir) {
 		printf("L%d:\n", n);
 	}
 	codebuf[n+1].i = ci - n;
@@ -126,6 +135,4 @@ void CodeBuilder::setLabel(int n) {
 Code *CodeBuilder::getCode() {
 	return codebuf.toArray();
 }
-
-
 

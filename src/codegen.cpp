@@ -306,9 +306,9 @@ static bool isReg2Op(int i) {
 	switch(i) {
 	case INS_IADD: 
 	case INS_ISUB: 
-	//case INS_IMUL: 
-	//case INS_IDIV: 
-	//case INS_IMOD: 
+	case INS_IMUL: 
+	case INS_IDIV: 
+	case INS_IMOD: 
 		return true;
 	}
 	return false;
@@ -318,6 +318,9 @@ static bool isReg2COp(int i) {
 	switch(i) {
 	case INS_IADDC: 
 	case INS_ISUBC: 
+	case INS_IMULC: 
+	case INS_IDIVC: 
+	case INS_IMODC: 
 		return true;
 	}
 	return false;
@@ -327,6 +330,15 @@ static int applyOpC(int i, int x, int y) {
 	switch(i) {
 	case INS_IADDC: return x + y;
 	case INS_ISUBC: return x - y;
+	case INS_IMULC: return x * y;
+	case INS_IDIVC: return x / y;
+	case INS_IMODC: return x % y;
+	case INS_IJMPLTC: return x < y;
+	case INS_IJMPLEC: return x <= y;
+	case INS_IJMPGTC: return x > y;
+	case INS_IJMPGEC: return x >= y;
+	case INS_IJMPEQC: return x == y;
+	case INS_IJMPNEC: return x != y;
 	}
 	exit(1);
 }
@@ -371,8 +383,70 @@ static bool isCondJmpCOp(int i) {
 	return false;
 }
 
-static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
-	CodeBuilder cb(ctx, func, false);
+static int getOpSize(int i) {
+	switch(i) {
+		// int ins
+	case INS_RETC:
+		return 2;
+		// reg int ins
+	case INS_ICONST:
+	case INS_IADDC:
+	case INS_ISUBC:
+		// reg2ins
+	case INS_MOV:
+	case INS_IADD:
+	case INS_ISUB:
+	case INS_IMUL:
+	case INS_IDIV:
+	case INS_IMOD:
+		return 3;
+
+		// regins
+	case INS_INEG:
+	case INS_RET:
+	case INS_JOIN:
+	case INS_IPRINT:
+	case INS_BPRINT:
+		return 2;
+
+		// jmp
+	case INS_IJMPLT:
+	case INS_IJMPLE:
+	case INS_IJMPGT:
+	case INS_IJMPGE:
+	case INS_IJMPEQ:
+	case INS_IJMPNE:
+	case INS_IJMPLTC:
+	case INS_IJMPLEC:
+	case INS_IJMPGTC:
+	case INS_IJMPGEC:
+	case INS_IJMPEQC:
+	case INS_IJMPNEC:
+		return 4;
+
+// jmp pc+[r1]
+	case INS_JMP:
+		return 2;
+
+// global variable [var] [r1]
+	case INS_LOAD_GLOBAL:
+	case INS_STORE_GLOBAL:
+		return 3;
+
+// call [func], shift, rix
+	case INS_CALL:
+	case INS_SPAWN:
+		return 3;
+
+	case INS_END:
+		return 1;
+	default:
+		exit(1);
+	}
+}
+
+static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
+	CodeBuilder cb(ctx, func, false, showir);
 	Code *pc = func->code;
 	Frame *frame = new Frame[inlinecnt + 1];
 	Frame *fp = frame;
@@ -397,7 +471,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			}
 			if(isReg2Op(pc[3].i) && (pc[1].i == pc[5].i)) {
 				// const a x && op b a -> opC b x
-				cb.createIntIns(toConstOp(pc[3].i), pc[4].i+sp, pc[2].i);
+				cb.createRegIntIns(toConstOp(pc[3].i), pc[4].i+sp, pc[2].i);
 				pc += 3 + 3;
 				break;
 			}
@@ -411,6 +485,15 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 				// const a x && jmpxx b a -> jmpxxC b x
 				int n = cb.createCondOpC(toConstOp(pc[3].i), pc[5].i+sp, pc[2].i);
 				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
+				pc += 3 + 4;
+				break;
+			}
+			if(isCondJmpCOp(pc[3].i) && pc[1].i == pc[5].i) {
+				// const a x && jmpxxC a y
+				if(applyOpC(pc[3].i, pc[2].i, pc[6].i)) {
+					int n = cb.createJmp();
+					PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
+				}
 				pc += 3 + 4;
 				break;
 			}
@@ -500,23 +583,22 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 	
 	case INS_JMP: {
 		Code *pc2 = pc + pc[1].i;
-		if(pc2->i == INS_RET) {
-			// jump & return
-			if(layer > 0) {
-				cb.createMov(sp-2, sp + pc2[1].i);
-				// goto end
-				if(pc[2].i != INS_END) {
-					int n = cb.createJmp();
-					PUSH_LABEL(n, fp[-1].pc, layer-1);
-				}
-			} else {
-				cb.createRet(pc2[1].i + sp);
-			}
+		if(pc2->i == INS_RET && layer == 0) {
+			cb.createRet(pc2[1].i + sp);
+			pc += 2;
+		} else if(pc2 == pc + 2) {
+			// do nothing
+			pc += 2;
 		} else {
+			// skip dead code
+			Code *pc3 = pc + 2;
+			while(pc3 < pc2 && pc3->i != INS_END && !isjmplable(&la, pc3, layer)) {
+				pc3 += getOpSize(pc3->i);
+			}
 			int n = cb.createJmp();
 			PUSH_LABEL(n, pc2, layer);
+			pc = pc3;
 		}
-		pc += 2;
 		break;
 	}
 	case INS_LOAD_GLOBAL:  cb.createLoadGlobal(pc[1].var, pc[2].i + sp); pc += 3; break;
@@ -550,12 +632,17 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			cb.createRet(pc[1].i);
 		}
 		pc += 2;
+
+		// skip dead code
+		while(pc->i != INS_END && !isjmplable(&la, pc, layer)) {
+			pc += getOpSize(pc->i);
+		}
 		break;
 	}
 	case INS_RETC: {
 		if(layer > 0) {
 			cb.createIConst(sp-2, pc[1].i);
-			pc += 3;
+			pc += 2;
 			// goto end
 			if(pc->i != INS_END) {
 				int n = cb.createJmp();
@@ -563,7 +650,11 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 			}
 		} else {
 			cb.createRetC(pc[1].i);
-			pc += 3;
+			pc += 2;
+		}
+		// skip dead code
+		while(pc->i != INS_END && !isjmplable(&la, pc, layer)) {
+			pc += getOpSize(pc->i);
 		}
 		break;
 	}
@@ -595,17 +686,22 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt) {
 
 #ifdef USING_THCODE
 static void opt_thcode(Context *ctx, Func *func) {
-	CodeBuilder cb(ctx, func, true);
+	CodeBuilder cb(ctx, func, true, false);
 	Code *pc = func->code;
 
 	L_BEGIN:
 	switch(pc->i) {
 		// int ins
+	case INS_RETC:
+		cb.createIntIns(pc[0].i, pc[1].i);
+		pc += 2;
+		break;
+
+		// reg int ins
 	case INS_ICONST:
 	case INS_IADDC:
 	case INS_ISUBC:
-	case INS_RETC:
-		cb.createIntIns(pc[0].i, pc[1].i, pc[2].i);
+		cb.createRegIntIns(pc[0].i, pc[1].i, pc[2].i);
 		pc += 3;
 		break;
 
@@ -691,7 +787,7 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Context *ctx = cb->getCtx();
 	ctx->putFunc(func);
 
-	CodeBuilder newCb(ctx, func, false);
+	CodeBuilder newCb(ctx, func, false, true);
 	codegen(cons, &newCb, func->argc);
 	newCb.createRet(func->argc);
 	newCb.createEnd();
@@ -699,12 +795,13 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	func->codeLength = newCb.getCodeLength();
 #define CODESIZE_BORDER 400
 	for(int i=0; i<ctx->inlinecount; i++) {
-		opt_inline(ctx, func, 1);
+		opt_inline(ctx, func, 1, false);
 		if(func->codeLength >= CODESIZE_BORDER) break;
 	}
 	for(int i=0; i<4; i++) {
-		opt_inline(ctx, func, 0);
+		opt_inline(ctx, func, 0, false);
 	}
+	opt_inline(ctx, func, 0, true);
 #ifdef USING_THCODE
 	opt_thcode(ctx, func);
 #endif

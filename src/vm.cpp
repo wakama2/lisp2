@@ -59,6 +59,9 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		
 	CASE_IOPC(IADDC, +=);
 	CASE_IOPC(ISUBC, -=);
+	CASE_IOPC(IMULC, *=);
+	CASE_IOPC(IDIVC, /=);
+	CASE_IOPC(IMODC, %=);
 	
 	CASE(INEG) {
 		sp[pc[1].i].i = -sp[pc[1].i].i;
@@ -104,7 +107,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(CALL) {
-		register Value *sp2 = sp;
+		Value *sp2 = sp;
 		sp += pc[2].i;
 		sp[-2].sp = sp2;
 		sp[-1].pc = pc + 3;
@@ -128,7 +131,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		}
 		sp[pc[2].i - 3].task = NULL;
 		// CALL
-		register Value *sp2 = sp;
+		Value *sp2 = sp;
 		sp += pc[2].i;
 		sp[-2].sp = sp2;
 		sp[-1].pc = pc + 3;
@@ -140,7 +143,7 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(JOIN) {
-		register int res = pc[1].i;
+		int res = pc[1].i;
 		Task *t = sp[res].task;
 		if(t != NULL) {
 			if(t->stat == TASK_RUN) {
@@ -159,14 +162,14 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 	} NEXT();
 
 	CASE(RET) {
-		register Value *sp2 = sp[-2].sp;
+		Value *sp2 = sp[-2].sp;
 		sp[-2] = sp[pc[1].i];
 		pc = sp[-1].pc;
 		sp = sp2;
 	} NEXT();
 
 	CASE(RETC) {
-		register Value *sp2 = sp[-2].sp;
+		Value *sp2 = sp[-2].sp;
 		sp[-2].i = pc[1].i;
 		pc = sp[-1].pc;
 		sp = sp2;
@@ -177,6 +180,11 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 2;
 	} NEXT();
 
+	CASE(FPRINT) {
+		fprintf(stdout, "%lf\n", sp[pc[1].i].f);
+		pc += 2;
+	} NEXT();
+	
 	CASE(BPRINT) {
 		fprintf(stdout, "%s\n", sp[pc[1].i].i ? "T" : "NIL");
 		pc += 2;

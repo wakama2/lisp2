@@ -11,6 +11,9 @@ I(IMOD)
 // [r1] += r2
 I(IADDC)
 I(ISUBC)
+I(IMULC)
+I(IDIVC)
+I(IMODC)
 // [r1] *= -1
 I(INEG)
 // jmp pc+[r1] if [r1] < [r2]
@@ -42,6 +45,7 @@ I(RETC)
 I(JOIN)
 // print [r1] for debug
 I(IPRINT)
+I(FPRINT)
 I(BPRINT)
 I(END)
 
