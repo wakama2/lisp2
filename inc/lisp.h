@@ -56,6 +56,7 @@ struct Code {
 		void *ptr;
 		Func *func;
 		Variable *var;
+		Cons *cons;
 	};
 };
 

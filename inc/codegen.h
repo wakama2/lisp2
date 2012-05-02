@@ -19,6 +19,7 @@ public:
 	void createReg2Ins(int ins, int reg, int reg2);
 	void createVarIns(int ins, int reg, Variable *var);
 	void createFuncIns(int ins, Func *func, int sftsfp);
+	void createConsIns(int ins, Cons *cons);
 	
 	void createIConst(int r, int v) { createRegIntIns(INS_ICONST, r, v); }
 	void createMov(int r, int r2) { createReg2Ins(INS_MOV, r, r2); }
@@ -52,6 +53,7 @@ public:
 
 ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn = false);
 void codeopt(Context *ctx, Func *func);
+void defun(Context *ctx, Cons *cons);
 
 #endif
 

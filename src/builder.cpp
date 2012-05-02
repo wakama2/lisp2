@@ -91,6 +91,14 @@ void CodeBuilder::createFuncIns(int ins, Func *func, int sftsfp) {
 	ADD(i, sftsfp);
 }
 
+void CodeBuilder::createConsIns(int ins, Cons *cons) {
+	if(showir) {
+		printf("%04d: %s\t%p\n", ci, ctx->getInstName(ins), cons);
+	}
+	ADDINS(ins);
+	ADD(cons, cons);
+}
+
 int CodeBuilder::createCondOp(int inst, int a, int b, int offset) {
 	int lb = ci;
 	if(showir) {

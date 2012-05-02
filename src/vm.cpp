@@ -190,6 +190,11 @@ void vmrun(Context *ctx, WorkerThread *wth, Task *task) {
 		pc += 2;
 	} NEXT();
 
+	CASE(DEFUN) {
+		defun(ctx, pc[1].cons);
+		pc += 2;
+	} NEXT();
+
 	CASE(END) {
 		task->stat = TASK_END;
 		return;

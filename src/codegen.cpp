@@ -214,6 +214,20 @@ static const char *newStr(const char *ss) {
 	return s;
 }
 
+static Cons *copyCons(Cons *cons) {
+	if(cons == NULL) return NULL;
+	Cons *c = new Cons(cons->type);
+	switch(cons->type) {
+	case CONS_INT: c->i = cons->i; break;
+	case CONS_STR: c->str = newStr(cons->str); break;
+	case CONS_FLOAT: c->f = cons->f; break;
+	case CONS_CAR: c->car = copyCons(cons->car); break;
+	default: abort();
+	}
+	if(cons->cdr != NULL) c->cdr = copyCons(cons->cdr);
+	return c;
+}
+
 static Func *newFunc(const char *name, Cons *args, CodeGenFunc gen) {
 	int argc = 0;
 	for(Cons *c=args; c!=NULL; c=c->cdr) {
@@ -285,6 +299,11 @@ static ValueType genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 }
 
 static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
+	cb->createConsIns(INS_DEFUN, copyCons(cons));
+	return VT_VOID;
+}
+
+void defun(Context *ctx, Cons *cons) {
 	const char *name = cons->str;
 	cons = cons->cdr;
 	Cons *args = cons->car;
@@ -292,25 +311,23 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Func *func = newFunc(name, args, genCall);
 	func->rtype = VT_INT;
 
-	Context *ctx = cb->getCtx();
 	ctx->putFunc(func);
 
-	CodeBuilder newCb(ctx, func, false, true);
+	CodeBuilder cb(ctx, func, false, true);
 	if(cons == NULL) {
-		cb->createIConst(0, 0);
+		cb.createIConst(0, 0);
 		func->rtype = VT_BOOLEAN;
 	} else {
 		while(cons != NULL) {
-			func->rtype = codegen(cons, &newCb, func->argc);
+			func->rtype = codegen(cons, &cb, func->argc);
 			cons = cons->cdr;
 		}
 	}
-	newCb.createRet(func->argc);
-	newCb.createEnd();
-	func->code = newCb.getCode();
-	func->codeLength = newCb.getCodeLength();
+	cb.createRet(func->argc);
+	cb.createEnd();
+	func->code = cb.getCode();
+	func->codeLength = cb.getCodeLength();
 	codeopt(ctx, func);
-	return VT_VOID;
 }
 
 void addDefaultFuncs(Context *ctx) {

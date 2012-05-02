@@ -177,7 +177,8 @@ static int getOpSize(int i) {
 	case INS_CALL:
 	case INS_SPAWN:
 		return 3;
-
+	case INS_DEFUN:
+		return 2;
 	case INS_END:
 		return 1;
 	default:
@@ -454,6 +455,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 	case INS_JOIN: cb.createJoin(pc[1].i + sp); pc += 2; break;
 	case INS_IPRINT: cb.createPrintInt(pc[1].i + sp); pc += 2; break;
 	case INS_BPRINT: cb.createPrintBoolean(pc[1].i + sp); pc += 2; break;
+	case INS_DEFUN: cb.createConsIns(pc[0].i, pc[1].cons); pc += 2; break;
 	case INS_END: {
 		if(layer == 0) {
 			cb.createEnd();
@@ -561,6 +563,11 @@ static void opt_thcode(Context *ctx, Func *func) {
 	case INS_SPAWN:
 		cb.createFuncIns(pc[0].i, pc[1].func, pc[2].i);
 		pc += 3;
+		break;
+// defun [cons]
+	case INS_DEFUN:
+		cb.createConsIns(pc[0].i, pc[1].cons);
+		pc += 2;
 		break;
 	case INS_END:
 		cb.createEnd();

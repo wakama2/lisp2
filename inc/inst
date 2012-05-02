@@ -47,5 +47,7 @@ I(JOIN)
 I(IPRINT)
 I(FPRINT)
 I(BPRINT)
+// defun [cons]
+I(DEFUN)
 I(END)
 
