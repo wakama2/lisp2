@@ -92,6 +92,7 @@ struct Func {
 	const char *name;
 	size_t argc;
 	const char **args;
+	ValueType rtype;
 	CodeGenFunc codegen;
 	Func *next;
 };

@@ -254,7 +254,7 @@ static ValueType genCall(Func *func, Cons *cons, CodeBuilder *cb, int sp) {
 		}
 	}
 	cb->createCall(func, sp);
-	return VT_INT;
+	return func->rtype;
 }
 
 #define SRSFT 3
@@ -290,12 +290,21 @@ static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 	Cons *args = cons->car;
 	cons = cons->cdr;
 	Func *func = newFunc(name, args, genCall);
+	func->rtype = VT_INT;
 
 	Context *ctx = cb->getCtx();
 	ctx->putFunc(func);
 
 	CodeBuilder newCb(ctx, func, false, true);
-	codegen(cons, &newCb, func->argc);
+	if(cons == NULL) {
+		cb->createIConst(0, 0);
+		func->rtype = VT_BOOLEAN;
+	} else {
+		while(cons != NULL) {
+			func->rtype = codegen(cons, &newCb, func->argc);
+			cons = cons->cdr;
+		}
+	}
 	newCb.createRet(func->argc);
 	newCb.createEnd();
 	func->code = newCb.getCode();
