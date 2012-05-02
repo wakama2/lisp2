@@ -485,6 +485,13 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 			la[i].pc = NULL;
 		}
 	}
+	// unused inst
+	if((pc[0].i == INS_ICONST || pc[0].i == INS_MOV || isReg2Op(pc[0].i) || isReg2COp(pc[0].i)) &&
+			!isjmplable(&la, pc+3, layer) && (pc[3].i == INS_RET || pc[3].i == INS_RETC) &&
+			pc[1].i != pc[4].i) {
+		pc += 3;
+		goto L_BEGIN;
+	}
 	switch(pc->i) {
 	case INS_ICONST: {
 		if(!isjmplable(&la, pc+3, layer)) {
@@ -602,6 +609,12 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 		if(pc[0].i == INS_IADDC && pc[3].i == INS_IADDC && pc[1].i == pc[4].i) {
 			// iaddc a x && iaddc a y -> iaddc a (x+y)
 			cb.createRegIntIns(pc[0].i, pc[1].i + sp, pc[2].i + pc[5].i);
+			pc += 3 + 3;
+			break;
+		}
+		if(pc[0].i == INS_IMULC && pc[3].i == INS_IMULC && pc[1].i == pc[4].i) {
+			// imulc a x && imulc a y -> imulc a (x*y)
+			cb.createRegIntIns(pc[0].i, pc[1].i + sp, pc[2].i * pc[5].i);
 			pc += 3 + 3;
 			break;
 		}
