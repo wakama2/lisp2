@@ -401,6 +401,21 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 		if(pc2->i == INS_RET && layer == 0) {
 			cb.createRet(pc2[1].i + sp);
 			pc += 2;
+		} else if(pc2->i == INS_RETC && layer == 0) {
+			cb.createRetC(pc2[1].i);
+			pc += 2;
+		} else if(isCondJmpOp(pc2->i) && layer == 0) {
+			int n = cb.createCondOp(pc2[0].i, pc2[2].i + sp, pc2[3].i + sp);
+			PUSH_LABEL(n, pc2 + pc2[1].i, layer);
+			int m = cb.createJmp();
+			PUSH_LABEL(m, pc2 + 4, layer);
+			pc += 2;
+		} else if(isCondJmpCOp(pc2->i) && layer == 0) {
+			int n = cb.createCondOpC(pc2[0].i, pc2[2].i + sp, pc2[3].i);
+			PUSH_LABEL(n, pc2 + pc2[1].i, layer);
+			int m = cb.createJmp();
+			PUSH_LABEL(m, pc2 + 4, layer);
+			pc += 2;
 		} else if(pc2 == pc + 2) {
 			// do nothing
 			pc += 2;
