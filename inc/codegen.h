@@ -51,6 +51,7 @@ public:
 };
 
 ValueType codegen(Cons *cons, CodeBuilder *cb, int sp, bool spawn = false);
+void codeopt(Context *ctx, Func *func);
 
 #endif
 

@@ -8,6 +8,7 @@ SRCS = \
 	src/vm.cpp \
 	src/scheduler.cpp \
 	src/codegen.cpp \
+	src/opt.cpp \
 	src/builder.cpp \
 	src/context.cpp \
 	src/lisp.cpp \
