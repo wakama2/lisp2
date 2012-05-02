@@ -15,6 +15,9 @@ Context::Context() {
 }
 
 Context::~Context() {
+	for(int i=0, j=code_cons.getSize(); i<j; i++) {
+		cons_free(code_cons[i]);
+	}
 	delete sche;
 	for(Func *l=funclist; l!=NULL; ){
 		Func *next = l->next;
@@ -24,6 +27,9 @@ Context::~Context() {
 		if(l->argc != 0) delete [] l->args;
 		delete [] l->name;
 		if(l->code != NULL) delete [] l->code;
+#ifdef USING_THCODE
+		if(l->thcode != NULL) delete [] l->thcode;
+#endif
 		delete l;
 		l = next;
 	}

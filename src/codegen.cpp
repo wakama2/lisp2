@@ -299,7 +299,9 @@ static ValueType genSetq(Func *, Cons *cons, CodeBuilder *cb, int sp) {
 }
 
 static ValueType genDefun(Func *, Cons *cons, CodeBuilder *cb, int sp) {
-	cb->createConsIns(INS_DEFUN, copyCons(cons));
+	Cons *c = copyCons(cons);
+	cb->createConsIns(INS_DEFUN, c);
+	cb->getCtx()->code_cons.add(c);
 	return VT_VOID;
 }
 

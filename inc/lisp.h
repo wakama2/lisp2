@@ -122,6 +122,7 @@ public:
 	bool flagShowIR;
 	int inlinecount;
 	int workers;
+	ArrayBuilder<Cons *> code_cons;
 
 	Context();
 	~Context();
