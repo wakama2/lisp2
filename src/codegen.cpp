@@ -346,13 +346,16 @@ static int applyOpC(int i, int x, int y) {
 	case INS_IJMPEQC: return x == y;
 	case INS_IJMPNEC: return x != y;
 	}
-	exit(1);
+	abort();
 }
 	
 static int toConstOp(int i) {
 	switch(i) {
 	case INS_IADD: return INS_IADDC;
 	case INS_ISUB: return INS_ISUBC;
+	case INS_IMUL: return INS_IMULC;
+	case INS_IDIV: return INS_IDIVC;
+	case INS_IMOD: return INS_IMODC;
 	case INS_IJMPLT: return INS_IJMPLTC;
 	case INS_IJMPLE: return INS_IJMPLEC;
 	case INS_IJMPGT: return INS_IJMPGTC;
@@ -360,7 +363,7 @@ static int toConstOp(int i) {
 	case INS_IJMPEQ: return INS_IJMPEQC;
 	case INS_IJMPNE: return INS_IJMPNEC;
 	}
-	exit(1);
+	abort();
 }
 
 static bool isCondJmpOp(int i) {
@@ -384,7 +387,7 @@ static int toRevCondJmpOp(int i) {
 	case INS_IJMPGE: return INS_IJMPLT;
 	case INS_IJMPEQ: return INS_IJMPNE;
 	case INS_IJMPNE: return INS_IJMPEQ;
-	default: exit(0);
+	default: abort();
 	}
 }
 
@@ -410,6 +413,9 @@ static int getOpSize(int i) {
 	case INS_ICONST:
 	case INS_IADDC:
 	case INS_ISUBC:
+	case INS_IMULC:
+	case INS_IDIVC:
+	case INS_IMODC:
 		// reg2ins
 	case INS_MOV:
 	case INS_IADD:
@@ -459,7 +465,7 @@ static int getOpSize(int i) {
 	case INS_END:
 		return 1;
 	default:
-		exit(1);
+		abort();
 	}
 }
 
@@ -487,12 +493,6 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 				pc += 3 + 3;
 				break;
 			}
-			//if((pc[3].i == INS_IADD || pc[3].i == INS_IMUL) && (pc[1].i == pc[4].i)) {
-			//	// const a x && op a b -> opC b x
-			//	cb.createRegIntIns(toConstOp(pc[3].i), pc[5].i+sp, pc[2].i);
-			//	pc += 3 + 3;
-			//	break;
-			//}
 			if(isReg2Op(pc[3].i) && (pc[1].i == pc[5].i)) {
 				// const a x && op b a -> opC b x
 				cb.createRegIntIns(toConstOp(pc[3].i), pc[4].i+sp, pc[2].i);
@@ -530,6 +530,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 				break;
 			}
 			if(pc[3].i == INS_RET && (pc[1].i == pc[4].i) && layer == 0) {
+				// const a x && ret a -> retc x
 				cb.createRetC(pc[2].i);
 				pc += 3 + 2;
 				break;
@@ -589,12 +590,37 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 	case INS_ISUB: 
 	case INS_IMUL: 
 	case INS_IDIV: 
-	case INS_IMOD: {
-		cb.createReg2Ins(pc[0].i, pc[1].i + sp, pc[2].i + sp); pc += 3;
+	case INS_IMOD:
+		cb.createReg2Ins(pc[0].i, pc[1].i + sp, pc[2].i + sp);
+		pc += 3;
 		break;
-	}
-	case INS_IADDC: cb.createIAddC(pc[1].i + sp, pc[2].i); pc += 3; break;
-	case INS_ISUBC: cb.createISubC(pc[1].i + sp, pc[2].i); pc += 3; break;
+	case INS_IADDC:
+	case INS_ISUBC:
+	case INS_IMULC:
+	case INS_IDIVC:
+	case INS_IMODC:
+		if(pc[0].i == INS_IADDC && pc[3].i == INS_IADDC && pc[1].i == pc[4].i) {
+			// iaddc a x && iaddc a y -> iaddc a (x+y)
+			cb.createRegIntIns(pc[0].i, pc[1].i + sp, pc[2].i + pc[5].i);
+			pc += 3 + 3;
+			break;
+		}
+		if(pc[0].i == INS_ISUBC) {
+			cb.createRegIntIns(INS_IADDC, pc[1].i + sp, -pc[2].i);
+			pc += 3;
+			break;
+		}
+		if(pc[0].i == INS_IADDC && pc[2].i == 0) {
+			// do nothing
+		} else if((pc[0].i == INS_IMULC || pc[0].i == INS_IDIVC) && pc[2].i == 1) {
+			// do nothing
+		} else if(pc[0].i == INS_IMULC && pc[2].i == 0) {
+			cb.createIConst(pc[1].i + sp, 0);
+		} else {
+			cb.createRegIntIns(pc[0].i, pc[1].i + sp, pc[2].i);
+		}
+		pc += 3;
+		break;
 	case INS_INEG: cb.createINeg(pc[1].i + sp); pc += 2; break;
 	case INS_IJMPLT: 
 	case INS_IJMPLE: 
@@ -618,7 +644,6 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 		pc += 4;
 		break;
 	}
-	
 	case INS_JMP: {
 		Code *pc2 = pc + pc[1].i;
 		if(pc2->i == INS_RET && layer == 0) {
@@ -670,7 +695,6 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 			cb.createRet(pc[1].i);
 		}
 		pc += 2;
-
 		// skip dead code
 		while(pc->i != INS_END && !isjmplable(&la, pc, layer)) {
 			pc += getOpSize(pc->i);
@@ -739,6 +763,9 @@ static void opt_thcode(Context *ctx, Func *func) {
 	case INS_ICONST:
 	case INS_IADDC:
 	case INS_ISUBC:
+	case INS_IMULC:
+	case INS_IDIVC:
+	case INS_IMODC:
 		cb.createRegIntIns(pc[0].i, pc[1].i, pc[2].i);
 		pc += 3;
 		break;
@@ -807,6 +834,8 @@ static void opt_thcode(Context *ctx, Func *func) {
 	case INS_END:
 		cb.createEnd();
 		goto L_FINAL;
+	default:
+		abort();
 	}
 	goto L_BEGIN;
 	L_FINAL:
