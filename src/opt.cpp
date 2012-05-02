@@ -16,7 +16,7 @@ struct Label {
 		la.add(l); \
 	}
 
-static bool isjmplable(ArrayBuilder<Label> *ab, Code *pc, int layer) {
+static bool isjmplabel(ArrayBuilder<Label> *ab, Code *pc, int layer) {
 	for(int i=0, j=ab->getSize(); i<j; i++) {
 		Label l = (*ab)[i];
 		if(pc == l.pc && layer == l.layer) return true;
@@ -204,14 +204,14 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 	}
 	// unused inst
 	if((pc[0].i == INS_ICONST || pc[0].i == INS_MOV || isReg2Op(pc[0].i) || isReg2COp(pc[0].i)) &&
-			!isjmplable(&la, pc+3, layer) && (pc[3].i == INS_RET || pc[3].i == INS_RETC) &&
+			!isjmplabel(&la, pc+3, layer) && (pc[3].i == INS_RET || pc[3].i == INS_RETC) &&
 			pc[1].i != pc[4].i) {
 		pc += 3;
 		goto L_BEGIN;
 	}
 	switch(pc->i) {
 	case INS_ICONST: {
-		if(!isjmplable(&la, pc+3, layer)) {
+		if(!isjmplabel(&la, pc+3, layer)) {
 			if(pc[3].i == INS_MOV && (pc[1].i == pc[5].i)) {
 				cb.createIConst(pc[4].i + sp, pc[2].i);
 				pc += 3 + 3;
@@ -223,10 +223,23 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 				pc += 3 + 3;
 				break;
 			}
+			if((pc[3].i == INS_IADD || pc[3].i == INS_IMUL) && (pc[1].i == pc[4].i)) {
+				// const a x && op a b -> mov a b && opC a x
+				cb.createMov(pc[4].i + sp, pc[5].i + sp);
+				cb.createRegIntIns(toConstOp(pc[3].i), pc[4].i+sp, pc[2].i);
+				pc += 3 + 3;
+				break;
+			}
 			if(isReg2COp(pc[3].i) && (pc[1].i == pc[4].i)) {
 				// const a x && opC a y -> const a (x op y)
 				cb.createIConst(pc[1].i+sp, applyOpC(pc[3].i, pc[2].i, pc[5].i));
 				pc += 3 + 3;
+				break;
+			}
+			if(pc[3].i == INS_INEG && (pc[1].i == pc[4].i)) {
+				// const a x && neg a -> const a -x
+				cb.createIConst(pc[1].i + sp, -pc[2].i);
+				pc += 3 + 2;
 				break;
 			}
 			if(isCondJmpOp(pc[3].i) && pc[1].i == pc[6].i) {
@@ -265,7 +278,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 		break;
 	}
 	case INS_MOV: {
-		if(!isjmplable(&la, pc+3, layer)) {
+		if(!isjmplabel(&la, pc+3, layer)) {
 			if(pc[3].i == INS_MOV && pc[1].i == pc[5].i) {
 				// mov b a && mov c b -> mov c a
 				cb.createMov(pc[4].i + sp, pc[2].i + sp);
@@ -303,6 +316,13 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 				int n = cb.createCondOpC(pc[3].i, pc[2].i+sp, pc[6].i);
 				PUSH_LABEL(n, pc + 3 + pc[4].i, layer);
 				pc += 3 + 4;
+				break;
+			}
+			if(isReg2COp(pc[3].i) && pc[6].i == INS_RET && pc[1].i == pc[4].i && pc[4].i == pc[7].i && !isjmplabel(&la, pc+6, layer)) {
+				// mov b a && opC b x && ret b -> opC a x && ret a
+				cb.createRegIntIns(pc[3].i, pc[2].i + sp, pc[5].i);
+				cb.createRet(pc[2].i + sp);
+				pc += 3 + 3 + 2;
 				break;
 			}
 		}
@@ -387,7 +407,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 		} else {
 			// skip dead code
 			Code *pc3 = pc + 2;
-			while(pc3 < pc2 && pc3->i != INS_END && !isjmplable(&la, pc3, layer)) {
+			while(pc3 < pc2 && pc3->i != INS_END && !isjmplabel(&la, pc3, layer)) {
 				pc3 += getOpSize(pc3->i);
 			}
 			int n = cb.createJmp();
@@ -428,7 +448,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 		}
 		pc += 2;
 		// skip dead code
-		while(pc->i != INS_END && !isjmplable(&la, pc, layer)) {
+		while(pc->i != INS_END && !isjmplabel(&la, pc, layer)) {
 			pc += getOpSize(pc->i);
 		}
 		break;
@@ -447,7 +467,7 @@ static void opt_inline(Context *ctx, Func *func, int inlinecnt, bool showir) {
 			pc += 2;
 		}
 		// skip dead code
-		while(pc->i != INS_END && !isjmplable(&la, pc, layer)) {
+		while(pc->i != INS_END && !isjmplabel(&la, pc, layer)) {
 			pc += getOpSize(pc->i);
 		}
 		break;
